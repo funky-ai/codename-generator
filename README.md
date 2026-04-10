@@ -97,4 +97,4 @@ uv run fastmcp dev src/codename_generator/server.py
 
 ## License
 
-MIT
+Apache 2.0
