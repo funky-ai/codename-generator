@@ -32,8 +32,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc   # zsh users
 # source ~/.bashrc  # bash users
 
-# 3. Download the project (replace with actual path)
-git clone <repository-url> ~/codename-generator
+# 3. Download the project
+git clone https://github.com/funky-ai/codename-generator.git ~/codename-generator
 cd ~/codename-generator
 
 # 4. Install dependencies (uv auto-downloads Python 3.12 and all packages)

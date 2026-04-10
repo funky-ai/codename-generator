@@ -32,8 +32,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc   # zsh 用户
 # source ~/.bashrc  # bash 用户
 
-# 3. 下载项目（替换为实际路径）
-git clone <repository-url> ~/codename-generator
+# 3. 下载项目
+git clone https://github.com/funky-ai/codename-generator.git ~/codename-generator
 cd ~/codename-generator
 
 # 4. 安装依赖（uv 会自动下载 Python 3.12 和所有依赖包）
