@@ -82,8 +82,8 @@ uv sync
 
 ## 文档
 
-- [中文最佳实践](docs/best-practices-zh.md)
-- [English Best Practices](docs/best-practices-en.md)
+- [最佳实践指南](docs/best-practices-zh.md)
+- [Best Practices Guide](docs/best-practices-en.md)
 
 ## 开发
 

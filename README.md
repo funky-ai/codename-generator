@@ -82,8 +82,8 @@ Real, commonly recognizable animal species. No mythical creatures or species wit
 
 ## Documentation
 
-- [English Best Practices](docs/best-practices-en.md)
-- [中文最佳实践](docs/best-practices-zh.md)
+- [Best Practices Guide](docs/best-practices-en.md)
+- [最佳实践指南](docs/best-practices-zh.md)
 
 ## Development
 
