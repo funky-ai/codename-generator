@@ -11,7 +11,7 @@ from typing import Optional
 from fastmcp import FastMCP
 
 from .core import CodenameManager
-from .models import CodenameInput
+from .models import CodenameInput, CodenameUpdate
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -71,7 +71,7 @@ def add_codenames(
         operator: Who is adding these codenames.
 
     Returns:
-        Summary with counts of added, duplicates, and errors.
+        Summary with counts of added, codename_ids, and errors.
     """
     items = [CodenameInput(**c) for c in codenames]
     return manager.add_codenames(items, operator)
@@ -103,22 +103,64 @@ def draw_random(
     description="Permanently assign a codename to a project. This is IRREVERSIBLE — the codename cannot be unassigned or reused. Confirm with the user before calling.",
 )
 def assign_codename(
-    codename_name: str,
+    codename_id: str,
     project_name: str,
     assigned_by: str = "system",
 ) -> dict:
     """Assign a codename to a project. One-way, irreversible.
 
     Args:
-        codename_name: The canonical name of the codename to assign.
+        codename_id: The codename ID to assign (e.g. CN-xxxxxxxx).
         project_name: The project to assign it to.
         assigned_by: Who is making the assignment.
 
     Returns:
         The assignment record.
     """
-    assignment = manager.assign_codename(codename_name, project_name, assigned_by)
+    assignment = manager.assign_codename(codename_id, project_name, assigned_by)
     return assignment.model_dump()
+
+
+@mcp.tool(
+    name="update_codename",
+    description="Update fields of an existing codename. Partial updates supported — only provided fields are changed. If changing theme to 'person', sub_theme must be provided. If changing to 'animal', sub_theme is automatically cleared.",
+)
+def update_codename(
+    codename_id: str,
+    name: Optional[str] = None,
+    name_en: Optional[str] = None,
+    name_zh: Optional[str] = None,
+    theme: Optional[str] = None,
+    sub_theme: Optional[str] = None,
+    brief: Optional[str] = None,
+    operator: str = "system",
+) -> dict:
+    """Update an existing codename's fields.
+
+    Args:
+        codename_id: The codename ID to update (e.g. CN-xxxxxxxx).
+        name: New canonical display name.
+        name_en: New English name.
+        name_zh: New Chinese name.
+        theme: New theme ('person' or 'animal').
+        sub_theme: New sub-theme. Required when theme is 'person'.
+        brief: New brief description.
+        operator: Who is making this update.
+
+    Returns:
+        The updated codename record.
+    """
+    update = CodenameUpdate(
+        codename_id=codename_id,
+        name=name,
+        name_en=name_en,
+        name_zh=name_zh,
+        theme=theme,
+        sub_theme=sub_theme,
+        brief=brief,
+    )
+    result = manager.update_codename(update, operator)
+    return result.model_dump()
 
 
 @mcp.tool(
@@ -201,7 +243,7 @@ def view_logs(
 
     Args:
         limit: Maximum number of log entries (default 50).
-        action: Filter by action type ('added' or 'assigned').
+        action: Filter by action type ('added', 'assigned', or 'updated').
 
     Returns:
         List of log entries, most recent first.

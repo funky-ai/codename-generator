@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class CodenameInput(BaseModel):
     """Input for adding a codename to the inventory."""
 
-    name: str = Field(description="Canonical display name (used as unique key)")
+    name: str = Field(description="Canonical display name")
     name_en: str = Field(description="English name, 1-2 words")
     name_zh: str = Field(description="Chinese name, 2-4 characters")
     theme: Literal["person", "animal"]
@@ -21,10 +21,22 @@ class CodenameInput(BaseModel):
     brief: str = Field(description="1-2 sentence description")
 
 
+class CodenameUpdate(BaseModel):
+    """Input for updating an existing codename. Only provided fields are changed."""
+
+    codename_id: str = Field(description="The codename ID to update (e.g. CN-xxxxxxxx)")
+    name: Optional[str] = Field(default=None, description="New canonical display name")
+    name_en: Optional[str] = Field(default=None, description="New English name")
+    name_zh: Optional[str] = Field(default=None, description="New Chinese name")
+    theme: Optional[Literal["person", "animal"]] = Field(default=None, description="New theme")
+    sub_theme: Optional[str] = Field(default=None, description="New sub_theme (required for person theme)")
+    brief: Optional[str] = Field(default=None, description="New brief description")
+
+
 class Codename(BaseModel):
     """A codename record from the inventory."""
 
-    id: int
+    codename_id: str
     name: str
     name_en: str
     name_zh: str
@@ -39,7 +51,7 @@ class Assignment(BaseModel):
     """A codename-to-project assignment record."""
 
     id: int
-    codename_id: int
+    codename_id: str
     codename_name: str
     project_name: str
     assigned_by: str
@@ -51,7 +63,7 @@ class LogEntry(BaseModel):
 
     id: int
     timestamp: str
-    action: Literal["added", "assigned"]
+    action: Literal["added", "assigned", "updated"]
     codename: str
     operator: str
     details: Optional[str]

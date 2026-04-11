@@ -1,12 +1,13 @@
 """Tests for codename inventory core business logic."""
 
 from pathlib import Path
+import json
 import tempfile
 
 import pytest
 
 from codename_generator.core import CodenameManager
-from codename_generator.models import CodenameInput
+from codename_generator.models import CodenameInput, CodenameUpdate
 
 
 @pytest.fixture
@@ -39,6 +40,12 @@ def sample_animal():
     )
 
 
+def _add_one(manager, item):
+    """Add a single codename and return its codename_id."""
+    result = manager.add_codenames([item])
+    return result["codename_ids"][0]
+
+
 # ------------------------------------------------------------------
 # add_codenames
 # ------------------------------------------------------------------
@@ -48,18 +55,18 @@ class TestAddCodenames:
     def test_add_single(self, manager, sample_person):
         result = manager.add_codenames([sample_person])
         assert result["added"] == 1
-        assert result["duplicates"] == []
+        assert len(result["codename_ids"]) == 1
+        assert result["codename_ids"][0].startswith("CN-")
         assert result["errors"] == []
 
     def test_add_batch(self, manager, sample_person, sample_animal):
         result = manager.add_codenames([sample_person, sample_animal])
         assert result["added"] == 2
+        assert len(result["codename_ids"]) == 2
 
-    def test_duplicate_rejected(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        result = manager.add_codenames([sample_person])
-        assert result["added"] == 0
-        assert result["duplicates"] == ["Einstein"]
+    def test_codename_ids_are_unique(self, manager, sample_person, sample_animal):
+        result = manager.add_codenames([sample_person, sample_animal])
+        assert result["codename_ids"][0] != result["codename_ids"][1]
 
     def test_person_requires_sub_theme(self, manager):
         item = CodenameInput(
@@ -91,8 +98,9 @@ class TestDrawRandom:
         assert results == []
 
     def test_draw_returns_available_only(self, manager, sample_person, sample_animal):
-        manager.add_codenames([sample_person, sample_animal])
-        manager.assign_codename("Einstein", "Project-A")
+        result = manager.add_codenames([sample_person, sample_animal])
+        cid_person = result["codename_ids"][0]
+        manager.assign_codename(cid_person, "Project-A")
         results = manager.draw_random(count=10)
         assert len(results) == 1
         assert results[0].name == "Falcon"
@@ -103,6 +111,11 @@ class TestDrawRandom:
         assert len(results) == 1
         assert results[0].theme == "animal"
 
+    def test_draw_returns_codename_id(self, manager, sample_person):
+        manager.add_codenames([sample_person])
+        results = manager.draw_random(count=1)
+        assert results[0].codename_id.startswith("CN-")
+
 
 # ------------------------------------------------------------------
 # assign_codename (irreversible)
@@ -111,14 +124,15 @@ class TestDrawRandom:
 
 class TestAssignCodename:
     def test_assign_success(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        assignment = manager.assign_codename("Einstein", "Project-X")
+        cid = _add_one(manager, sample_person)
+        assignment = manager.assign_codename(cid, "Project-X")
+        assert assignment.codename_id == cid
         assert assignment.codename_name == "Einstein"
         assert assignment.project_name == "Project-X"
 
     def test_assign_changes_status(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        manager.assign_codename("Einstein", "Project-X")
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, "Project-X")
         inventory = manager.list_inventory(status="available")
         assert len(inventory) == 0
         inventory = manager.list_inventory(status="assigned")
@@ -126,19 +140,20 @@ class TestAssignCodename:
 
     def test_assign_nonexistent_fails(self, manager):
         with pytest.raises(ValueError, match="not found"):
-            manager.assign_codename("Ghost", "Project-X")
+            manager.assign_codename("CN-NOTEXIST", "Project-X")
 
     def test_assign_already_assigned_fails(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        manager.assign_codename("Einstein", "Project-X")
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, "Project-X")
         with pytest.raises(ValueError, match="already assigned"):
-            manager.assign_codename("Einstein", "Project-Y")
+            manager.assign_codename(cid, "Project-Y")
 
     def test_assign_project_already_has_codename(self, manager, sample_person, sample_animal):
-        manager.add_codenames([sample_person, sample_animal])
-        manager.assign_codename("Einstein", "Project-X")
+        result = manager.add_codenames([sample_person, sample_animal])
+        cid1, cid2 = result["codename_ids"]
+        manager.assign_codename(cid1, "Project-X")
         with pytest.raises(ValueError, match="already has codename"):
-            manager.assign_codename("Falcon", "Project-X")
+            manager.assign_codename(cid2, "Project-X")
 
 
 # ------------------------------------------------------------------
@@ -182,15 +197,15 @@ class TestLogs:
         assert logs[0].codename == "Einstein"
 
     def test_assign_creates_log(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        manager.assign_codename("Einstein", "Project-X")
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, "Project-X")
         logs = manager.get_logs(action="assigned")
         assert len(logs) == 1
         assert logs[0].codename == "Einstein"
 
     def test_log_filter_by_action(self, manager, sample_person):
-        manager.add_codenames([sample_person])
-        manager.assign_codename("Einstein", "Project-X")
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, "Project-X")
         all_logs = manager.get_logs()
         assert len(all_logs) == 2
         added_logs = manager.get_logs(action="added")
@@ -222,3 +237,127 @@ class TestSearch:
         manager.add_codenames([sample_person])
         results = manager.search("nonexistent")
         assert len(results) == 0
+
+
+# ------------------------------------------------------------------
+# update_codename
+# ------------------------------------------------------------------
+
+
+class TestUpdateCodename:
+    def test_update_single_field(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        result = manager.update_codename(CodenameUpdate(codename_id=cid, brief="Updated brief"))
+        assert result.brief == "Updated brief"
+        assert result.name_en == "Einstein"  # unchanged
+        assert result.codename_id == cid  # unchanged
+
+    def test_update_multiple_fields(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        result = manager.update_codename(
+            CodenameUpdate(codename_id=cid, name_en="A. Einstein", name_zh="阿尔伯特")
+        )
+        assert result.name_en == "A. Einstein"
+        assert result.name_zh == "阿尔伯特"
+
+    def test_update_name_field(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        result = manager.update_codename(CodenameUpdate(codename_id=cid, name="Albert Einstein"))
+        assert result.name == "Albert Einstein"
+        assert result.codename_id == cid  # ID doesn't change
+
+    def test_update_nonexistent_fails(self, manager):
+        with pytest.raises(ValueError, match="not found"):
+            manager.update_codename(CodenameUpdate(codename_id="CN-NOTEXIST", brief="New brief"))
+
+    def test_update_no_fields_fails(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        with pytest.raises(ValueError, match="No fields to update"):
+            manager.update_codename(CodenameUpdate(codename_id=cid))
+
+    def test_update_person_to_animal_clears_sub_theme(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        result = manager.update_codename(CodenameUpdate(codename_id=cid, theme="animal"))
+        assert result.theme == "animal"
+        assert result.sub_theme is None
+
+    def test_update_animal_to_person_requires_sub_theme(self, manager, sample_animal):
+        cid = _add_one(manager, sample_animal)
+        with pytest.raises(ValueError, match="sub_theme"):
+            manager.update_codename(CodenameUpdate(codename_id=cid, theme="person"))
+
+    def test_update_animal_to_person_with_sub_theme(self, manager, sample_animal):
+        cid = _add_one(manager, sample_animal)
+        result = manager.update_codename(
+            CodenameUpdate(codename_id=cid, theme="person", sub_theme="science")
+        )
+        assert result.theme == "person"
+        assert result.sub_theme == "science"
+
+    def test_update_assigned_codename_allowed(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, "Project-X")
+        result = manager.update_codename(CodenameUpdate(codename_id=cid, brief="Corrected brief"))
+        assert result.brief == "Corrected brief"
+        assert result.status == "assigned"
+
+    def test_update_creates_log(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        manager.update_codename(CodenameUpdate(codename_id=cid, brief="New brief"))
+        logs = manager.get_logs(action="updated")
+        assert len(logs) == 1
+        assert logs[0].codename == "Einstein"
+        assert logs[0].action == "updated"
+
+    def test_update_log_details_structure(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        manager.update_codename(
+            CodenameUpdate(codename_id=cid, name_en="A. Einstein", brief="New")
+        )
+        logs = manager.get_logs(action="updated")
+        details = json.loads(logs[0].details)
+        assert details["codename_id"] == cid
+        assert set(details["changed_fields"]) == {"name_en", "brief"}
+        assert details["old_values"]["name_en"] == "Einstein"
+        assert details["new_values"]["name_en"] == "A. Einstein"
+
+
+# ------------------------------------------------------------------
+# codename_id format
+# ------------------------------------------------------------------
+
+
+class TestCodenameId:
+    def test_format(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        assert cid.startswith("CN-")
+        assert len(cid) == 11  # CN- + 8 chars
+
+    def test_uses_alphanumeric_only(self, manager):
+        """codename_id should only contain CN- prefix + alphanumeric chars."""
+        import string
+        items = [
+            CodenameInput(
+                name=f"Test{i}", name_en=f"Test{i}", name_zh=f"测试{i}",
+                theme="animal", brief=f"Test animal {i}",
+            )
+            for i in range(20)
+        ]
+        result = manager.add_codenames(items)
+        valid_chars = set(string.ascii_letters + string.digits)
+        for cid in result["codename_ids"]:
+            random_part = cid[3:]  # strip CN-
+            assert all(c in valid_chars for c in random_part)
+
+    def test_uniqueness(self, manager):
+        """All generated codename_ids should be unique."""
+        items = [
+            CodenameInput(
+                name=f"Animal{i}", name_en=f"Animal{i}", name_zh=f"动物{i}",
+                theme="animal", brief=f"Animal number {i}",
+            )
+            for i in range(50)
+        ]
+        result = manager.add_codenames(items)
+        ids = result["codename_ids"]
+        assert len(ids) == len(set(ids))
