@@ -2,6 +2,24 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
+## [0.0.3] - 2026-04-13
+
+### 安全
+- 领用记录新增随机 `assignment_id`（格式：`ASN-xxxxxxxx`，CSPRNG），API 不再暴露内部自增 `id`
+- 审计日志 API 不再暴露内部自增 `id`
+- 审计日志列从可变的显示名称改为稳定的 `codename_id`（`CN-xxxxxxxx`），改名后审计链路不断裂
+- ID 生成增加碰撞重试机制（最多 5 次），碰撞时返回明确错误
+
+### 变更
+- `assign_codename`：必填 `project_name` 改为可选 `description` — 代号本身就是项目标识
+- 移除"一个项目只能有一个代号"的约束
+- `assigned_at` 返回实际 DB 时间戳，不再是空字符串
+- 日志 `details` JSON 存 `name`（人读）替代冗余的 `codename_id`（已有独立列）
+- Prompt `assign_project_codename` 重命名为 `assign_codename_workflow`（不再需要项目名）
+
+### 迁移
+- v3 自动迁移：为已有领用记录生成 `assignment_id`，从日志 details JSON 提取 `codename_id`，`project_name` 重命名为 `description`
+
 ## [0.0.2] - 2026-04-12
 
 ### 新增
