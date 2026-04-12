@@ -48,17 +48,17 @@ class CodenameManager:
                     errors.append(f"{item.name}: person theme requires sub_theme")
                     continue
                 try:
-                    codename_id = db.generate_codename_id()
+                    codename_id = db.generate_codename_id(conn)
                     data = item.model_dump()
                     data["codename_id"] = codename_id
                     db.insert_codename(conn, data)
                     db.insert_log(
                         conn,
                         action="added",
-                        codename=item.name,
+                        codename_id=codename_id,
                         operator=operator,
                         details=json.dumps(
-                            {"codename_id": codename_id, "theme": item.theme, "sub_theme": item.sub_theme},
+                            {"name": item.name, "theme": item.theme, "sub_theme": item.sub_theme},
                             ensure_ascii=False,
                         ),
                     )
@@ -115,11 +115,11 @@ class CodenameManager:
             db.insert_log(
                 conn,
                 action="updated",
-                codename=existing["name"],
+                codename_id=update.codename_id,
                 operator=operator,
                 details=json.dumps(
                     {
-                        "codename_id": update.codename_id,
+                        "name": existing["name"],
                         "changed_fields": list(fields_to_update.keys()),
                         "old_values": old_values,
                         "new_values": {k: fields_to_update[k] for k in old_values},
@@ -161,10 +161,10 @@ class CodenameManager:
     def assign_codename(
         self,
         codename_id: str,
-        project_name: str,
+        description: Optional[str] = None,
         assigned_by: str = "system",
     ) -> Assignment:
-        """Permanently assign a codename to a project. Irreversible."""
+        """Permanently assign a codename. Irreversible."""
         conn = db.get_connection(self.db_path)
         try:
             codename = db.get_codename_by_codename_id(conn, codename_id)
@@ -173,38 +173,29 @@ class CodenameManager:
             if codename["status"] != "available":
                 raise ValueError(f"Codename '{codename_id}' is already assigned")
 
-            existing = db.get_assignment_by_project(conn, project_name)
-            if existing:
-                raise ValueError(
-                    f"Project '{project_name}' already has codename '{existing['codename_name']}'"
-                )
+            assignment_id = db.generate_assignment_id(conn)
 
             # Atomic transaction
             conn.execute("BEGIN")
             db.update_codename_status(conn, codename["id"], "assigned")
-            assignment_id = db.insert_assignment(
-                conn, codename["id"], project_name, assigned_by
+            db.insert_assignment(
+                conn, assignment_id, codename["id"], description, assigned_by
             )
             db.insert_log(
                 conn,
                 action="assigned",
-                codename=codename["name"],
+                codename_id=codename_id,
                 operator=assigned_by,
                 details=json.dumps(
-                    {"codename_id": codename_id, "project": project_name},
+                    {"name": codename["name"], "description": description},
                     ensure_ascii=False,
                 ),
             )
             conn.commit()
 
-            return Assignment(
-                id=assignment_id,
-                codename_id=codename_id,
-                codename_name=codename["name"],
-                project_name=project_name,
-                assigned_by=assigned_by,
-                assigned_at="",  # will be set by DB default
-            )
+            # Re-read to get DB-generated assigned_at
+            assignment = db.get_assignment_by_codename(conn, codename["id"])
+            return Assignment(**assignment)
         except Exception:
             conn.rollback()
             raise

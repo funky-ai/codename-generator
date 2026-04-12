@@ -100,7 +100,7 @@ class TestDrawRandom:
     def test_draw_returns_available_only(self, manager, sample_person, sample_animal):
         result = manager.add_codenames([sample_person, sample_animal])
         cid_person = result["codename_ids"][0]
-        manager.assign_codename(cid_person, "Project-A")
+        manager.assign_codename(cid_person)
         results = manager.draw_random(count=10)
         assert len(results) == 1
         assert results[0].name == "Falcon"
@@ -125,14 +125,26 @@ class TestDrawRandom:
 class TestAssignCodename:
     def test_assign_success(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        assignment = manager.assign_codename(cid, "Project-X")
+        assignment = manager.assign_codename(cid)
+        assert assignment.assignment_id.startswith("ASN-")
         assert assignment.codename_id == cid
         assert assignment.codename_name == "Einstein"
-        assert assignment.project_name == "Project-X"
+        assert assignment.description is None
+
+    def test_assign_with_description(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        assignment = manager.assign_codename(cid, description="Internal auth service")
+        assert assignment.codename_id == cid
+        assert assignment.description == "Internal auth service"
+
+    def test_assign_returns_assigned_at(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        assignment = manager.assign_codename(cid)
+        assert assignment.assigned_at != ""
 
     def test_assign_changes_status(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        manager.assign_codename(cid, "Project-X")
+        manager.assign_codename(cid)
         inventory = manager.list_inventory(status="available")
         assert len(inventory) == 0
         inventory = manager.list_inventory(status="assigned")
@@ -140,20 +152,13 @@ class TestAssignCodename:
 
     def test_assign_nonexistent_fails(self, manager):
         with pytest.raises(ValueError, match="not found"):
-            manager.assign_codename("CN-NOTEXIST", "Project-X")
+            manager.assign_codename("CN-NOTEXIST")
 
     def test_assign_already_assigned_fails(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        manager.assign_codename(cid, "Project-X")
+        manager.assign_codename(cid)
         with pytest.raises(ValueError, match="already assigned"):
-            manager.assign_codename(cid, "Project-Y")
-
-    def test_assign_project_already_has_codename(self, manager, sample_person, sample_animal):
-        result = manager.add_codenames([sample_person, sample_animal])
-        cid1, cid2 = result["codename_ids"]
-        manager.assign_codename(cid1, "Project-X")
-        with pytest.raises(ValueError, match="already has codename"):
-            manager.assign_codename(cid2, "Project-X")
+            manager.assign_codename(cid)
 
 
 # ------------------------------------------------------------------
@@ -190,22 +195,22 @@ class TestInventoryStats:
 
 class TestLogs:
     def test_add_creates_log(self, manager, sample_person):
-        manager.add_codenames([sample_person])
+        cid = _add_one(manager, sample_person)
         logs = manager.get_logs()
         assert len(logs) == 1
         assert logs[0].action == "added"
-        assert logs[0].codename == "Einstein"
+        assert logs[0].codename_id == cid
 
     def test_assign_creates_log(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        manager.assign_codename(cid, "Project-X")
+        manager.assign_codename(cid)
         logs = manager.get_logs(action="assigned")
         assert len(logs) == 1
-        assert logs[0].codename == "Einstein"
+        assert logs[0].codename_id == cid
 
     def test_log_filter_by_action(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        manager.assign_codename(cid, "Project-X")
+        manager.assign_codename(cid)
         all_logs = manager.get_logs()
         assert len(all_logs) == 2
         added_logs = manager.get_logs(action="added")
@@ -296,7 +301,7 @@ class TestUpdateCodename:
 
     def test_update_assigned_codename_allowed(self, manager, sample_person):
         cid = _add_one(manager, sample_person)
-        manager.assign_codename(cid, "Project-X")
+        manager.assign_codename(cid)
         result = manager.update_codename(CodenameUpdate(codename_id=cid, brief="Corrected brief"))
         assert result.brief == "Corrected brief"
         assert result.status == "assigned"
@@ -306,7 +311,7 @@ class TestUpdateCodename:
         manager.update_codename(CodenameUpdate(codename_id=cid, brief="New brief"))
         logs = manager.get_logs(action="updated")
         assert len(logs) == 1
-        assert logs[0].codename == "Einstein"
+        assert logs[0].codename_id == cid
         assert logs[0].action == "updated"
 
     def test_update_log_details_structure(self, manager, sample_person):
@@ -316,7 +321,7 @@ class TestUpdateCodename:
         )
         logs = manager.get_logs(action="updated")
         details = json.loads(logs[0].details)
-        assert details["codename_id"] == cid
+        assert details["name"] == "Einstein"
         assert set(details["changed_fields"]) == {"name_en", "brief"}
         assert details["old_values"]["name_en"] == "Einstein"
         assert details["new_values"]["name_en"] == "A. Einstein"

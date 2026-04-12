@@ -100,24 +100,24 @@ def draw_random(
 
 @mcp.tool(
     name="assign_codename",
-    description="Permanently assign a codename to a project. This is IRREVERSIBLE — the codename cannot be unassigned or reused. Confirm with the user before calling.",
+    description="Permanently assign a codename. This is IRREVERSIBLE — the codename cannot be unassigned or reused. Confirm with the user before calling.",
 )
 def assign_codename(
     codename_id: str,
-    project_name: str,
+    description: Optional[str] = None,
     assigned_by: str = "system",
 ) -> dict:
-    """Assign a codename to a project. One-way, irreversible.
+    """Assign a codename. One-way, irreversible.
 
     Args:
         codename_id: The codename ID to assign (e.g. CN-xxxxxxxx).
-        project_name: The project to assign it to.
+        description: Optional brief description of what this codename is for.
         assigned_by: Who is making the assignment.
 
     Returns:
         The assignment record.
     """
-    assignment = manager.assign_codename(codename_id, project_name, assigned_by)
+    assignment = manager.assign_codename(codename_id, description=description, assigned_by=assigned_by)
     return assignment.model_dump()
 
 
@@ -202,7 +202,7 @@ def inventory_stats() -> dict:
 
 @mcp.tool(
     name="list_assignments",
-    description="List all codename-to-project assignments.",
+    description="List all codename assignments.",
 )
 def list_assignments() -> list[dict]:
     """List all existing assignments.
@@ -312,11 +312,11 @@ After generating, use the add_codenames tool to add them to the inventory."""
 
 
 @mcp.prompt(
-    name="assign_project_codename",
-    description="Walk through the process of assigning a codename to a new project.",
+    name="assign_codename_workflow",
+    description="Walk through the process of assigning a codename.",
 )
-def prompt_assign_workflow(project_name: str) -> str:
-    return f"""I need to assign a codename to the project "{project_name}".
+def prompt_assign_workflow() -> str:
+    return """I need to assign a codename.
 
 Please follow these steps:
 1. First, call inventory_stats to see what's available

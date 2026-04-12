@@ -13,10 +13,35 @@ _ID_ALPHABET = string.ascii_letters + string.digits
 _ID_LENGTH = 8
 
 
-def generate_codename_id() -> str:
+def _generate_unique_id(
+    prefix: str,
+    conn: sqlite3.Connection,
+    table: str,
+    column: str,
+    max_retries: int = 5,
+) -> str:
+    """Generate a unique random ID with collision retry."""
+    for _ in range(max_retries):
+        random_part = "".join(secrets.choice(_ID_ALPHABET) for _ in range(_ID_LENGTH))
+        new_id = f"{prefix}-{random_part}"
+        exists = conn.execute(
+            f"SELECT 1 FROM {table} WHERE {column} = ?", (new_id,)
+        ).fetchone()
+        if not exists:
+            return new_id
+    raise RuntimeError(
+        f"Failed to generate unique {prefix} ID after {max_retries} attempts"
+    )
+
+
+def generate_codename_id(conn: sqlite3.Connection) -> str:
     """Generate a cryptographically random codename ID (e.g. CN-a3Kx9mBQ)."""
-    random_part = "".join(secrets.choice(_ID_ALPHABET) for _ in range(_ID_LENGTH))
-    return f"CN-{random_part}"
+    return _generate_unique_id("CN", conn, "codename_inventory", "codename_id")
+
+
+def generate_assignment_id(conn: sqlite3.Connection) -> str:
+    """Generate a cryptographically random assignment ID (e.g. ASN-x7KmP2qR)."""
+    return _generate_unique_id("ASN", conn, "assignments", "assignment_id")
 
 SCHEMA_DDL = """
 CREATE TABLE IF NOT EXISTS codename_inventory (
@@ -33,26 +58,26 @@ CREATE TABLE IF NOT EXISTS codename_inventory (
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    codename_id  INTEGER NOT NULL REFERENCES codename_inventory(id),
-    project_name TEXT NOT NULL,
-    assigned_by  TEXT NOT NULL DEFAULT 'system',
-    assigned_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id TEXT NOT NULL UNIQUE,
+    codename_id   INTEGER NOT NULL REFERENCES codename_inventory(id),
+    description   TEXT,
+    assigned_by   TEXT NOT NULL DEFAULT 'system',
+    assigned_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
     UNIQUE(codename_id)
 );
 
 CREATE TABLE IF NOT EXISTS logs (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
-    action    TEXT NOT NULL CHECK (action IN ('added', 'assigned', 'updated')),
-    codename  TEXT NOT NULL,
-    operator  TEXT NOT NULL DEFAULT 'system',
-    details   TEXT
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
+    action      TEXT NOT NULL CHECK (action IN ('added', 'assigned', 'updated')),
+    codename_id TEXT NOT NULL,
+    operator    TEXT NOT NULL DEFAULT 'system',
+    details     TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_inventory_status ON codename_inventory(status);
 CREATE INDEX IF NOT EXISTS idx_inventory_theme ON codename_inventory(theme);
-CREATE INDEX IF NOT EXISTS idx_assignments_project ON assignments(project_name);
 CREATE INDEX IF NOT EXISTS idx_logs_action ON logs(action);
 """
 
@@ -119,12 +144,86 @@ def _migrate_inventory_codename_id(conn: sqlite3.Connection) -> None:
             """INSERT INTO codename_inventory
                (id, codename_id, name, name_en, name_zh, theme, sub_theme, brief, status, added_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (row["id"], generate_codename_id(), row["name"], row["name_en"], row["name_zh"],
+            (row["id"], generate_codename_id(conn), row["name"], row["name_en"], row["name_zh"],
              row["theme"], row["sub_theme"], row["brief"], row["status"], row["added_at"]),
         )
     conn.execute("DROP TABLE _inventory_old")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_inventory_status ON codename_inventory(status)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_inventory_theme ON codename_inventory(theme)")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys=ON")
+
+
+def _migrate_v3_schema(conn: sqlite3.Connection) -> None:
+    """Migrate assignments (add assignment_id, project_name→description) and
+    logs (codename→codename_id). Idempotent."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(assignments)").fetchall()]
+    if not columns:
+        return  # table doesn't exist yet (fresh DB handles it via SCHEMA_DDL)
+    if "assignment_id" in columns:
+        return  # already migrated
+
+    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("BEGIN")
+
+    # --- Migrate assignments ---
+    conn.execute("ALTER TABLE assignments RENAME TO _assignments_old")
+    conn.execute("""
+        CREATE TABLE assignments (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignment_id TEXT NOT NULL UNIQUE,
+            codename_id   INTEGER NOT NULL REFERENCES codename_inventory(id),
+            description   TEXT,
+            assigned_by   TEXT NOT NULL DEFAULT 'system',
+            assigned_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
+            UNIQUE(codename_id)
+        )
+    """)
+    old_assignments = conn.execute("SELECT * FROM _assignments_old").fetchall()
+    for row in old_assignments:
+        random_part = "".join(secrets.choice(_ID_ALPHABET) for _ in range(_ID_LENGTH))
+        asn_id = f"ASN-{random_part}"
+        conn.execute(
+            """INSERT INTO assignments
+               (id, assignment_id, codename_id, description, assigned_by, assigned_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (row["id"], asn_id, row["codename_id"],
+             row["project_name"], row["assigned_by"], row["assigned_at"]),
+        )
+    conn.execute("DROP TABLE _assignments_old")
+
+    # --- Migrate logs ---
+    conn.execute("ALTER TABLE logs RENAME TO _logs_old")
+    conn.execute("""
+        CREATE TABLE logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now')),
+            action      TEXT NOT NULL CHECK (action IN ('added', 'assigned', 'updated')),
+            codename_id TEXT NOT NULL,
+            operator    TEXT NOT NULL DEFAULT 'system',
+            details     TEXT
+        )
+    """)
+    old_logs = conn.execute("SELECT * FROM _logs_old").fetchall()
+    for row in old_logs:
+        # Extract stable codename_id from details JSON (all actions store it)
+        cn_id = row["codename"]  # fallback to old display name
+        if row["details"]:
+            try:
+                details = json.loads(row["details"])
+                if "codename_id" in details:
+                    cn_id = details["codename_id"]
+            except (json.JSONDecodeError, KeyError):
+                pass
+        conn.execute(
+            """INSERT INTO logs (id, timestamp, action, codename_id, operator, details)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (row["id"], row["timestamp"], row["action"], cn_id,
+             row["operator"], row["details"]),
+        )
+    conn.execute("DROP TABLE _logs_old")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_action ON logs(action)")
+
     conn.commit()
     conn.execute("PRAGMA foreign_keys=ON")
 
@@ -136,6 +235,7 @@ def init_db(db_path: Path) -> None:
     conn.executescript(SCHEMA_DDL)
     _migrate_logs_action_constraint(conn)
     _migrate_inventory_codename_id(conn)
+    _migrate_v3_schema(conn)
     conn.close()
 
 
@@ -262,35 +362,35 @@ def update_codename_fields(conn: sqlite3.Connection, codename_id: int, updates: 
 
 def insert_assignment(
     conn: sqlite3.Connection,
+    assignment_id: str,
     codename_id: int,
-    project_name: str,
+    description: Optional[str],
     assigned_by: str,
-) -> int:
-    """Insert an assignment record. Returns the new row id."""
-    cur = conn.execute(
-        """INSERT INTO assignments (codename_id, project_name, assigned_by)
-           VALUES (?, ?, ?)""",
-        (codename_id, project_name, assigned_by),
+) -> None:
+    """Insert an assignment record."""
+    conn.execute(
+        """INSERT INTO assignments (assignment_id, codename_id, description, assigned_by)
+           VALUES (?, ?, ?, ?)""",
+        (assignment_id, codename_id, description, assigned_by),
     )
-    return cur.lastrowid  # type: ignore[return-value]
 
 
-def get_assignment_by_project(conn: sqlite3.Connection, project_name: str) -> Optional[dict]:
-    """Check if a project already has a codename assigned."""
+def get_assignment_by_codename(conn: sqlite3.Connection, codename_internal_id: int) -> Optional[dict]:
+    """Get assignment record for a codename (by internal id)."""
     row = conn.execute(
-        """SELECT a.id, c.codename_id, c.name AS codename_name,
-                  a.project_name, a.assigned_by, a.assigned_at
+        """SELECT a.assignment_id, c.codename_id, c.name AS codename_name,
+                  a.description, a.assigned_by, a.assigned_at
            FROM assignments a JOIN codename_inventory c ON a.codename_id = c.id
-           WHERE a.project_name = ?""",
-        (project_name,),
+           WHERE a.codename_id = ?""",
+        (codename_internal_id,),
     ).fetchone()
     return dict(row) if row else None
 
 
 def get_all_assignments(conn: sqlite3.Connection) -> list[dict]:
     """Return all assignments with codename details."""
-    sql = """SELECT a.id, c.codename_id, c.name AS codename_name,
-                    a.project_name, a.assigned_by, a.assigned_at
+    sql = """SELECT a.assignment_id, c.codename_id, c.name AS codename_name,
+                    a.description, a.assigned_by, a.assigned_at
              FROM assignments a JOIN codename_inventory c ON a.codename_id = c.id
              ORDER BY a.assigned_at DESC"""
     return [dict(r) for r in conn.execute(sql).fetchall()]
@@ -304,17 +404,16 @@ def get_all_assignments(conn: sqlite3.Connection) -> list[dict]:
 def insert_log(
     conn: sqlite3.Connection,
     action: str,
-    codename: str,
+    codename_id: str,
     operator: str,
     details: Optional[str] = None,
-) -> int:
+) -> None:
     """Insert an audit log entry."""
-    cur = conn.execute(
-        """INSERT INTO logs (action, codename, operator, details)
+    conn.execute(
+        """INSERT INTO logs (action, codename_id, operator, details)
            VALUES (?, ?, ?, ?)""",
-        (action, codename, operator, details),
+        (action, codename_id, operator, details),
     )
-    return cur.lastrowid  # type: ignore[return-value]
 
 
 def get_logs(
@@ -323,7 +422,7 @@ def get_logs(
     action: Optional[str] = None,
 ) -> list[dict]:
     """Return audit logs, most recent first."""
-    sql = "SELECT * FROM logs"
+    sql = "SELECT timestamp, action, codename_id, operator, details FROM logs"
     params: list = []
     if action:
         sql += " WHERE action = ?"

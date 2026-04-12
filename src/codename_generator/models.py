@@ -50,10 +50,10 @@ class Codename(BaseModel):
 class Assignment(BaseModel):
     """A codename-to-project assignment record."""
 
-    id: int
+    assignment_id: str
     codename_id: str
     codename_name: str
-    project_name: str
+    description: Optional[str]
     assigned_by: str
     assigned_at: str
 
@@ -61,10 +61,9 @@ class Assignment(BaseModel):
 class LogEntry(BaseModel):
     """An audit log entry."""
 
-    id: int
     timestamp: str
     action: Literal["added", "assigned", "updated"]
-    codename: str
+    codename_id: str
     operator: str
     details: Optional[str]
 
