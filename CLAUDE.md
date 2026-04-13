@@ -2,22 +2,25 @@
 
 ## Project Overview
 
-Python 3.12 MCP server for managing project codenames. Built with FastMCP + Pydantic + SQLite.
+Python 3.12 MCP server + Web UI for managing project codenames. Built with FastMCP + FastAPI + Pydantic + SQLite.
 
-- Package manager: **uv**
+- Package manager: **uv** (Python), **pnpm** (frontend)
 - Current version: 0.0.4
 - License: Apache 2.0
 
 ## Architecture
 
-Four-layer architecture in `src/codename_generator/`:
+Five-layer architecture in `src/codename_generator/`:
 
 | Layer | File | Responsibility |
 |-------|------|---------------|
 | MCP Interface | `server.py` | FastMCP tool definitions, MCP entry point |
+| REST Interface | `api.py` | FastAPI REST API, Web frontend serving |
 | Business Logic | `core.py` | `CodenameManager` class, all domain rules |
 | Data Access | `db.py` | SQLite schema, migrations, CRUD operations |
 | Data Models | `models.py` | Pydantic input/output schemas |
+
+Frontend source in `web/` (Vite + React + TypeScript + shadcn/ui), build output in `src/codename_generator/static/`.
 
 - Data directory: `data/codenames.db` (gitignored, runtime data)
 - Two themes: `person` (with `sub_theme`) and `animal`
@@ -26,10 +29,17 @@ Four-layer architecture in `src/codename_generator/`:
 ## Development Commands
 
 ```bash
-uv sync                                              # Install dependencies
+uv sync                                              # Install Python dependencies
 uv run pytest tests/ -v                              # Run tests
 uv run fastmcp dev src/codename_generator/server.py  # Run MCP Inspector
-uv run python -m codename_generator                  # Run server directly
+uv run python -m codename_generator                  # Run MCP server
+uv run python -m codename_generator web              # Run Web server (:8000)
+uv run python -m codename_generator web --port 3000  # Web server on custom port
+
+# Frontend development
+cd web && pnpm install                               # Install frontend dependencies
+cd web && pnpm dev                                   # Vite dev server (proxy to :8000)
+cd web && pnpm build                                 # Build to static/
 ```
 
 ## Code Conventions
@@ -42,8 +52,9 @@ uv run python -m codename_generator                  # Run server directly
 
 ## Testing Conventions
 
-- Tests in `tests/test_core.py` using pytest
+- Tests in `tests/test_core.py` (business logic) and `tests/test_api.py` (REST API)
 - Use `tmp_path` fixture for database isolation
+- API tests use `monkeypatch.setenv` + singleton reset for DB isolation
 - Organize tests in classes by feature (`TestAddCodenames`, `TestAssignCodename`, etc.)
 - Helper functions for common setup (e.g., `_add_one`)
 - Test both success paths and error cases (`ValueError` assertions)
