@@ -64,6 +64,7 @@ Restart Claude Desktop, then try:
 | `add_codenames` | Add codenames to inventory in batch |
 | `draw_random` | Draw random suggestions without assigning |
 | `assign_codename` | Permanently assign a codename to a project |
+| `update_codename` | Update fields of an existing codename |
 | `list_inventory` | List codenames with filters |
 | `inventory_stats` | Inventory statistics and low-stock warnings |
 | `list_assignments` | View all assignments |

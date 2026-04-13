@@ -1,8 +1,6 @@
 """Tests for codename inventory core business logic."""
 
-from pathlib import Path
 import json
-import tempfile
 
 import pytest
 
@@ -366,3 +364,118 @@ class TestCodenameId:
         result = manager.add_codenames(items)
         ids = result["codename_ids"]
         assert len(ids) == len(set(ids))
+
+
+# ------------------------------------------------------------------
+# list_inventory
+# ------------------------------------------------------------------
+
+
+class TestListInventory:
+    def test_list_all(self, manager, sample_person, sample_animal):
+        manager.add_codenames([sample_person, sample_animal])
+        results = manager.list_inventory()
+        assert len(results) == 2
+
+    def test_filter_by_theme(self, manager, sample_person, sample_animal):
+        manager.add_codenames([sample_person, sample_animal])
+        results = manager.list_inventory(theme="person")
+        assert len(results) == 1
+        assert results[0].theme == "person"
+
+    def test_filter_by_status(self, manager, sample_person, sample_animal):
+        result = manager.add_codenames([sample_person, sample_animal])
+        manager.assign_codename(result["codename_ids"][0])
+        available = manager.list_inventory(status="available")
+        assigned = manager.list_inventory(status="assigned")
+        assert len(available) == 1
+        assert len(assigned) == 1
+
+    def test_filter_by_sub_theme(self, manager, sample_person):
+        manager.add_codenames([sample_person])
+        results = manager.list_inventory(sub_theme="science")
+        assert len(results) == 1
+        results = manager.list_inventory(sub_theme="art")
+        assert len(results) == 0
+
+    def test_combined_filters(self, manager, sample_person, sample_animal):
+        result = manager.add_codenames([sample_person, sample_animal])
+        manager.assign_codename(result["codename_ids"][0])  # assign person
+        results = manager.list_inventory(theme="person", status="assigned")
+        assert len(results) == 1
+        results = manager.list_inventory(theme="animal", status="assigned")
+        assert len(results) == 0
+
+
+# ------------------------------------------------------------------
+# list_assignments
+# ------------------------------------------------------------------
+
+
+class TestListAssignments:
+    def test_empty_assignments(self, manager):
+        results = manager.list_assignments()
+        assert results == []
+
+    def test_list_after_assign(self, manager, sample_person):
+        cid = _add_one(manager, sample_person)
+        manager.assign_codename(cid, description="Test project")
+        results = manager.list_assignments()
+        assert len(results) == 1
+        assert results[0].codename_id == cid
+        assert results[0].description == "Test project"
+
+    def test_multiple_assignments(self, manager, sample_person, sample_animal):
+        result = manager.add_codenames([sample_person, sample_animal])
+        for cid in result["codename_ids"]:
+            manager.assign_codename(cid)
+        results = manager.list_assignments()
+        assert len(results) == 2
+
+
+# ------------------------------------------------------------------
+# boundary inputs
+# ------------------------------------------------------------------
+
+
+class TestBoundaryInputs:
+    def test_search_sql_special_chars(self, manager, sample_person):
+        """SQL LIKE wildcards % and _ should not cause errors."""
+        manager.add_codenames([sample_person])
+        results = manager.search("%")
+        assert isinstance(results, list)
+        results = manager.search("_")
+        assert isinstance(results, list)
+
+    def test_empty_string_brief(self, manager):
+        """Empty string brief should be accepted by the model."""
+        item = CodenameInput(
+            name="Panda", name_en="Panda", name_zh="熊猫",
+            theme="animal", brief="",
+        )
+        result = manager.add_codenames([item])
+        assert result["added"] == 1
+
+    def test_long_name(self, manager):
+        """Very long names should not cause errors."""
+        long_name = "A" * 1000
+        item = CodenameInput(
+            name=long_name, name_en=long_name, name_zh="测试",
+            theme="animal", brief="Test animal",
+        )
+        result = manager.add_codenames([item])
+        assert result["added"] == 1
+        results = manager.search(long_name[:50])
+        assert len(results) == 1
+
+    def test_unicode_names(self, manager):
+        """Emoji and special Unicode characters should work."""
+        item = CodenameInput(
+            name="Phoenix", name_en="Phoenix",
+            name_zh="凤凰",
+            theme="animal", brief="A mythical bird of rebirth",
+        )
+        result = manager.add_codenames([item])
+        assert result["added"] == 1
+        results = manager.search("凤凰")
+        assert len(results) == 1

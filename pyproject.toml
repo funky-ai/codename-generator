@@ -12,6 +12,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff>=0.11.0",
 ]
 
 [build-system]
@@ -20,3 +21,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codename_generator"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/codename_generator/server.py" = ["E501"]  # MCP tool descriptions are long by nature
+"src/codename_generator/migrations.py" = ["E501"]  # SQL DDL statements

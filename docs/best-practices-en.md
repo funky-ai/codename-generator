@@ -163,8 +163,7 @@ You: View recent operation logs
 ### Assignment discipline
 
 - **Assignment is irreversible** -- this is by design, not a bug. Once a codename is bound to a project, it cannot be changed
-- Claude will always confirm before executing an assignment -- double-check the project name and codename
-- One project gets one codename; one codename goes to one project
+- Claude will always confirm before executing an assignment -- double-check the codename before confirming
 
 ### Codename quality
 

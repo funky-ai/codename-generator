@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Optional
 from fastmcp import FastMCP
 
 from .core import CodenameManager
+from .db import DEFAULT_LOG_LIMIT
 from .models import CodenameInput, CodenameUpdate
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,15 @@ plus a brief description. Use the tools to add them to the inventory, draw rando
 suggestions, assign them to projects, and monitor stock levels.""",
 )
 
-manager = CodenameManager(DB_PATH)
+_manager: CodenameManager | None = None
+
+
+def get_manager() -> CodenameManager:
+    """Lazy-initialize the CodenameManager singleton."""
+    global _manager
+    if _manager is None:
+        _manager = CodenameManager(DB_PATH)
+    return _manager
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +82,7 @@ def add_codenames(
         Summary with counts of added, codename_ids, and errors.
     """
     items = [CodenameInput(**c) for c in codenames]
-    return manager.add_codenames(items, operator)
+    return get_manager().add_codenames(items, operator)
 
 
 @mcp.tool(
@@ -94,7 +102,7 @@ def draw_random(
     Returns:
         List of available codename objects.
     """
-    results = manager.draw_random(theme=theme, count=count)
+    results = get_manager().draw_random(theme=theme, count=count)
     return [r.model_dump() for r in results]
 
 
@@ -117,7 +125,7 @@ def assign_codename(
     Returns:
         The assignment record.
     """
-    assignment = manager.assign_codename(codename_id, description=description, assigned_by=assigned_by)
+    assignment = get_manager().assign_codename(codename_id, description=description, assigned_by=assigned_by)
     return assignment.model_dump()
 
 
@@ -159,7 +167,7 @@ def update_codename(
         sub_theme=sub_theme,
         brief=brief,
     )
-    result = manager.update_codename(update, operator)
+    result = get_manager().update_codename(update, operator)
     return result.model_dump()
 
 
@@ -182,7 +190,7 @@ def list_inventory(
     Returns:
         List of matching codenames.
     """
-    results = manager.list_inventory(theme=theme, status=status, sub_theme=sub_theme)
+    results = get_manager().list_inventory(theme=theme, status=status, sub_theme=sub_theme)
     return [r.model_dump() for r in results]
 
 
@@ -196,7 +204,7 @@ def inventory_stats() -> dict:
     Returns:
         Statistics with total, available, assigned counts, theme breakdowns, and warnings.
     """
-    stats = manager.get_inventory_stats()
+    stats = get_manager().get_inventory_stats()
     return stats.model_dump()
 
 
@@ -210,7 +218,7 @@ def list_assignments() -> list[dict]:
     Returns:
         List of assignment records with codename and project details.
     """
-    results = manager.list_assignments()
+    results = get_manager().list_assignments()
     return [r.model_dump() for r in results]
 
 
@@ -227,7 +235,7 @@ def search_codenames(query: str) -> list[dict]:
     Returns:
         List of matching codenames.
     """
-    results = manager.search(query)
+    results = get_manager().search(query)
     return [r.model_dump() for r in results]
 
 
@@ -236,19 +244,19 @@ def search_codenames(query: str) -> list[dict]:
     description="View the audit log of codename additions and assignments.",
 )
 def view_logs(
-    limit: int = 50,
+    limit: int = DEFAULT_LOG_LIMIT,
     action: Optional[str] = None,
 ) -> list[dict]:
     """View audit logs.
 
     Args:
-        limit: Maximum number of log entries (default 50).
+        limit: Maximum number of log entries.
         action: Filter by action type ('added', 'assigned', or 'updated').
 
     Returns:
         List of log entries, most recent first.
     """
-    results = manager.get_logs(limit=limit, action=action)
+    results = get_manager().get_logs(limit=limit, action=action)
     return [r.model_dump() for r in results]
 
 

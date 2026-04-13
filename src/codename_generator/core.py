@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import db
+from .db import DEFAULT_LOG_LIMIT
 from .models import (
     Assignment,
     Codename,
@@ -267,7 +268,7 @@ class CodenameManager:
     # ------------------------------------------------------------------
 
     def get_logs(
-        self, limit: int = 50, action: Optional[str] = None
+        self, limit: int = DEFAULT_LOG_LIMIT, action: Optional[str] = None
     ) -> list[LogEntry]:
         """View audit logs."""
         conn = db.get_connection(self.db_path)

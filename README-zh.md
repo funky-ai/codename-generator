@@ -64,6 +64,7 @@ uv sync
 | `add_codenames` | 批量添加代号入库 |
 | `draw_random` | 随机抽取候选（不分配） |
 | `assign_codename` | 领用代号（不可撤销） |
+| `update_codename` | 修改已有代号的字段 |
 | `list_inventory` | 查询代号库 |
 | `inventory_stats` | 库存统计 + 预警 |
 | `list_assignments` | 查看所有领用记录 |

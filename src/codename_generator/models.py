@@ -16,7 +16,10 @@ class CodenameInput(BaseModel):
     theme: Literal["person", "animal"]
     sub_theme: Optional[str] = Field(
         default=None,
-        description="Required for 'person' theme: philosophy/art/science/economics/literature/music/politics/medicine/mathematics/engineering",
+        description=(
+            "Required for 'person' theme: philosophy/art/science/economics/"
+            "literature/music/politics/medicine/mathematics/engineering"
+        ),
     )
     brief: str = Field(description="1-2 sentence description")
 
@@ -29,7 +32,9 @@ class CodenameUpdate(BaseModel):
     name_en: Optional[str] = Field(default=None, description="New English name")
     name_zh: Optional[str] = Field(default=None, description="New Chinese name")
     theme: Optional[Literal["person", "animal"]] = Field(default=None, description="New theme")
-    sub_theme: Optional[str] = Field(default=None, description="New sub_theme (required for person theme)")
+    sub_theme: Optional[str] = Field(
+        default=None, description="New sub_theme (required for person theme)"
+    )
     brief: Optional[str] = Field(default=None, description="New brief description")
 
 
