@@ -15,10 +15,17 @@
 - `pyproject.toml`：显式添加 `fastapi` 和 `uvicorn` 依赖
 - `CLAUDE.md`：架构文档更新，加入 REST 层
 
+### 修复
+- CORS 来源改为通过 `CODENAME_CORS_ORIGINS` 环境变量配置（原硬编码为 `*`）
+- 移除前端未使用的 `react-router-dom` 依赖
+- 为所有 API 路由函数添加 docstring
+- 更新 README、CONTRIBUTING（中英双语）补充 Web 前端文档
+
 ### 基础设施
 - 前端项目位于 `web/`（Vite + React + TypeScript + pnpm）
 - 构建产物输出到 `src/codename_generator/static/`
 - Vite 开发服务器代理 API 请求到 FastAPI 后端
+- 强化 `/workflow-feature` 技能：全栈代码审查、强制文档清单、依赖审计
 
 ## [0.0.4] - 2026-04-13
 

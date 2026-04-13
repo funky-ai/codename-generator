@@ -15,10 +15,17 @@ All notable changes to this project will be documented in this file.
 - `pyproject.toml`: added `fastapi` and `uvicorn` as explicit dependencies
 - `CLAUDE.md`: updated architecture docs to include REST layer
 
+### Fixed
+- CORS origins now configurable via `CODENAME_CORS_ORIGINS` env var (was hardcoded `*`)
+- Removed unused `react-router-dom` dependency from frontend
+- Added docstrings to all API route functions
+- Updated README, CONTRIBUTING (bilingual) with web frontend docs
+
 ### Infrastructure
 - Frontend project in `web/` (Vite + React + TypeScript + pnpm)
 - Build output to `src/codename_generator/static/`
 - Vite dev server proxies API calls to FastAPI backend
+- Hardened `/workflow-feature` skill with full-stack code review, mandatory doc checklist, and dependency audit
 
 ## [0.0.4] - 2026-04-13
 
