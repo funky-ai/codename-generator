@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- GitHub Actions CI workflow (pytest + ruff on push/PR)
+- `ruff` linter with E, F, I rules
+- `CONTRIBUTING.md` and `CONTRIBUTING-zh.md`
+- `CLAUDE.md` with project conventions and workflow routing
+- Tests for `list_inventory` (5 tests), `list_assignments` (3 tests), and boundary inputs (4 tests)
+- SQL column whitelist validation in `update_codename_fields`
+- `DEFAULT_LOG_LIMIT` constant replacing hardcoded `50`
+
+### Changed
+- Extracted migration functions from `db.py` into `migrations.py`
+- `get_inventory_stats` optimized from 4 queries to 3
+- `CodenameManager` initialization changed from module-level to lazy `get_manager()`
+- README: added missing `update_codename` tool to tools table
+
+### Fixed
+- Removed outdated "one project one codename" text from best-practices docs
+- Removed unused imports (`json` in server.py, `tempfile`/`Path` in tests)
+
 ## [0.0.3] - 2026-04-13
 
 ### Security

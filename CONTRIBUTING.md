@@ -1,5 +1,7 @@
 # Contributing
 
+[中文版](CONTRIBUTING-zh.md)
+
 ## Setup
 
 ```bash

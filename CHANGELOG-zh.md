@@ -2,6 +2,27 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
+## [Unreleased]
+
+### 新增
+- GitHub Actions CI 工作流（push/PR 时自动运行 pytest + ruff）
+- `ruff` 代码检查工具（E, F, I 规则）
+- `CONTRIBUTING.md` 和 `CONTRIBUTING-zh.md` 贡献指南
+- `CLAUDE.md` 项目开发规范和工作流路由
+- `list_inventory`（5 条）、`list_assignments`（3 条）、边界输入（4 条）测试
+- `update_codename_fields` 新增 SQL 列名白名单校验
+- `DEFAULT_LOG_LIMIT` 常量，替代硬编码的 `50`
+
+### 变更
+- 迁移函数从 `db.py` 提取到独立的 `migrations.py`
+- `get_inventory_stats` 查询优化：4 条合并为 3 条
+- `CodenameManager` 初始化从模块级改为延迟初始化 `get_manager()`
+- README 工具表补充遗漏的 `update_codename`
+
+### 修复
+- 删除 best-practices 中已过时的"一个项目一个代号"约束说明
+- 移除未使用的 import（server.py 的 `json`、tests 的 `tempfile`/`Path`）
+
 ## [0.0.3] - 2026-04-13
 
 ### 安全
