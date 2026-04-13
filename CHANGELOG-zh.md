@@ -2,7 +2,7 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
-## [Unreleased]
+## [0.0.4] - 2026-04-13
 
 ### 新增
 - GitHub Actions CI 工作流（push/PR 时自动运行 pytest + ruff）

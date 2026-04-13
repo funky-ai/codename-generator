@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.0.4] - 2026-04-13
 
 ### Added
 - GitHub Actions CI workflow (pytest + ruff on push/PR)
