@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-一个本地 MCP Server，用于管理项目代号，支持中英双语。
+一个本地 MCP Server + Web 界面，用于管理项目代号，支持中英双语。
 
 ## 功能
 
@@ -12,6 +12,8 @@
 - **中英双语** — 每个代号同时有英文和中文名称
 - **审计日志** — 完整记录所有入库和领用操作
 - **库存预警** — 可用代号低于阈值时自动提醒
+- **Web 界面** — 响应式网页界面（桌面 + 手机），支持中英文切换
+- **双入口** — 通过 MCP 客户端（Claude Desktop）或浏览器使用
 
 ## 快速开始
 
@@ -86,6 +88,19 @@ uv sync
 - [最佳实践指南](docs/best-practices-zh.md)
 - [Best Practices Guide](docs/best-practices-en.md)
 
+## Web 界面
+
+项目包含一个响应式 Web 界面，基于 React + shadcn/ui 构建。
+
+```bash
+# 启动 Web 服务
+uv run python -m codename_generator web
+
+# 浏览器打开 http://127.0.0.1:8000
+```
+
+Web 界面支持所有操作：仪表盘统计、代号库浏览、添加代号、随机抽取、分配、查看日志。支持中英文切换。
+
 ## 开发
 
 ```bash
@@ -94,6 +109,11 @@ uv run pytest tests/ -v
 
 # 启动 MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
+
+# 前端开发（需要 Node.js + pnpm）
+cd web && pnpm install    # 安装前端依赖
+cd web && pnpm dev        # Vite 开发服务器（API 代理到 :8000）
+cd web && pnpm build      # 构建到 src/codename_generator/static/
 ```
 
 ## 许可证

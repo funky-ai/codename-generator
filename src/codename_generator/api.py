@@ -35,9 +35,11 @@ def _get_db_path() -> Path:
 
 app = FastAPI(title="Codename Generator", version="0.0.4")
 
+_cors_origins = os.environ.get("CODENAME_CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -99,6 +101,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 
 @app.get("/api/stats")
 def stats() -> dict:
+    """Get inventory statistics with low-stock warnings."""
     return get_manager().get_inventory_stats().model_dump()
 
 
@@ -108,12 +111,14 @@ def list_codenames(
     status: Optional[str] = None,
     sub_theme: Optional[str] = None,
 ) -> list[dict]:
+    """List codenames with optional filters by theme, status, and sub_theme."""
     results = get_manager().list_inventory(theme=theme, status=status, sub_theme=sub_theme)
     return [r.model_dump() for r in results]
 
 
 @app.get("/api/codenames/search")
 def search_codenames(q: str) -> list[dict]:
+    """Search codenames by name (English or Chinese) or description."""
     results = get_manager().search(q)
     return [r.model_dump() for r in results]
 
@@ -123,17 +128,20 @@ def draw_random(
     count: int = Query(default=3, ge=1, le=50),
     theme: Optional[str] = None,
 ) -> list[dict]:
+    """Draw random available codenames as suggestions (does not assign)."""
     results = get_manager().draw_random(theme=theme, count=count)
     return [r.model_dump() for r in results]
 
 
 @app.post("/api/codenames")
 def add_codenames(req: AddCodenamesRequest) -> dict:
+    """Add codenames to the inventory in batch."""
     return get_manager().add_codenames(req.codenames, req.operator)
 
 
 @app.put("/api/codenames/{codename_id}")
 def update_codename(codename_id: str, req: UpdateRequest) -> dict:
+    """Update fields of an existing codename. Partial updates supported."""
     update = CodenameUpdate(
         codename_id=codename_id,
         name=req.name,
@@ -149,6 +157,7 @@ def update_codename(codename_id: str, req: UpdateRequest) -> dict:
 
 @app.post("/api/codenames/{codename_id}/assign")
 def assign_codename(codename_id: str, req: AssignRequest) -> dict:
+    """Permanently assign a codename. This action is IRREVERSIBLE."""
     result = get_manager().assign_codename(
         codename_id, description=req.description, assigned_by=req.assigned_by
     )
@@ -157,6 +166,7 @@ def assign_codename(codename_id: str, req: AssignRequest) -> dict:
 
 @app.get("/api/assignments")
 def list_assignments() -> list[dict]:
+    """List all codename assignments."""
     results = get_manager().list_assignments()
     return [r.model_dump() for r in results]
 
@@ -166,6 +176,7 @@ def view_logs(
     limit: int = Query(default=DEFAULT_LOG_LIMIT, ge=1, le=500),
     action: Optional[str] = None,
 ) -> list[dict]:
+    """View audit logs, most recent first."""
     results = get_manager().get_logs(limit=limit, action=action)
     return [r.model_dump() for r in results]
 
@@ -177,6 +188,7 @@ def view_logs(
 
 @app.get("/")
 def root() -> FileResponse:
+    """Serve the web frontend."""
     return FileResponse(STATIC_DIR / "index.html")
 
 

@@ -17,6 +17,18 @@ uv run pytest tests/ -v              # Run tests
 uv run ruff check src/ tests/        # Lint
 uv run ruff format src/ tests/       # Format
 uv run fastmcp dev src/codename_generator/server.py  # MCP Inspector
+uv run python -m codename_generator web              # Web server (:8000)
+```
+
+### Frontend Development
+
+Requires Node.js and pnpm.
+
+```bash
+cd web
+pnpm install          # Install dependencies
+pnpm dev              # Vite dev server (proxies API to :8000)
+pnpm build            # Build to src/codename_generator/static/
 ```
 
 ## Code Style
@@ -42,7 +54,8 @@ See [CLAUDE.md](CLAUDE.md) for project architecture and conventions.
 
 ## Tests
 
-- Write tests in `tests/test_core.py`
+- Business logic tests in `tests/test_core.py`
+- API endpoint tests in `tests/test_api.py`
 - Use `tmp_path` fixture for database isolation
 - Organize tests in classes by feature
 - Cover both success paths and error cases

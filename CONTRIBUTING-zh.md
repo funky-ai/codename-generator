@@ -17,6 +17,18 @@ uv run pytest tests/ -v              # 运行测试
 uv run ruff check src/ tests/        # 代码检查
 uv run ruff format src/ tests/       # 代码格式化
 uv run fastmcp dev src/codename_generator/server.py  # MCP Inspector
+uv run python -m codename_generator web              # Web 服务 (:8000)
+```
+
+### 前端开发
+
+需要 Node.js 和 pnpm。
+
+```bash
+cd web
+pnpm install          # 安装依赖
+pnpm dev              # Vite 开发服务器（API 代理到 :8000）
+pnpm build            # 构建到 src/codename_generator/static/
 ```
 
 ## 代码规范
@@ -42,7 +54,8 @@ refactor: extract migrations to separate module
 
 ## 测试
 
-- 测试写在 `tests/test_core.py`
+- 业务逻辑测试在 `tests/test_core.py`
+- API 接口测试在 `tests/test_api.py`
 - 使用 `tmp_path` fixture 实现数据库隔离
 - 按功能组织测试类
 - 覆盖成功路径和错误路径

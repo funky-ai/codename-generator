@@ -2,6 +2,24 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
+## [0.0.5] - 2026-04-13
+
+### 新增
+- **Web 界面**：基于 React + shadcn/ui 的响应式网页界面（桌面 + 手机）
+- **REST API**：FastAPI 后端（`api.py`），9 个接口封装 CodenameManager
+- Web 界面支持中英文切换（偏好存储在 localStorage）
+- `python -m codename_generator web` 命令启动 Web 服务
+- 24 个新的 API 测试 `tests/test_api.py`（总计 75 个）
+
+### 变更
+- `pyproject.toml`：显式添加 `fastapi` 和 `uvicorn` 依赖
+- `CLAUDE.md`：架构文档更新，加入 REST 层
+
+### 基础设施
+- 前端项目位于 `web/`（Vite + React + TypeScript + pnpm）
+- 构建产物输出到 `src/codename_generator/static/`
+- Vite 开发服务器代理 API 请求到 FastAPI 后端
+
 ## [0.0.4] - 2026-04-13
 
 ### 新增

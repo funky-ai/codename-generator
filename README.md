@@ -2,7 +2,7 @@
 
 [中文文档](README-zh.md)
 
-A local MCP server for managing project codenames with bilingual (English/Chinese) support.
+A local MCP server + Web UI for managing project codenames with bilingual (English/Chinese) support.
 
 ## Features
 
@@ -12,6 +12,8 @@ A local MCP server for managing project codenames with bilingual (English/Chines
 - **Bilingual** — Every codename has both English and Chinese names
 - **Audit Trail** — Full logging of all additions and assignments
 - **Low-stock Warning** — Alerts when available codenames drop below threshold
+- **Web UI** — Responsive web interface (desktop + mobile) with Chinese/English switching
+- **Dual Interface** — Use via MCP client (Claude Desktop) or web browser
 
 ## Quick Start
 
@@ -86,6 +88,19 @@ Real, commonly recognizable animal species. No mythical creatures or species wit
 - [Best Practices Guide](docs/best-practices-en.md)
 - [最佳实践指南](docs/best-practices-zh.md)
 
+## Web UI
+
+The project includes a responsive web interface built with React + shadcn/ui.
+
+```bash
+# Start web server
+uv run python -m codename_generator web
+
+# Open http://127.0.0.1:8000 in your browser
+```
+
+The web UI supports all operations: dashboard stats, inventory browsing, adding codenames, random draw, assigning, and viewing logs. Language can be toggled between Chinese and English.
+
 ## Development
 
 ```bash
@@ -94,6 +109,11 @@ uv run pytest tests/ -v
 
 # Launch MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
+
+# Frontend development (requires Node.js + pnpm)
+cd web && pnpm install    # Install frontend dependencies
+cd web && pnpm dev        # Vite dev server (proxy API to :8000)
+cd web && pnpm build      # Build to src/codename_generator/static/
 ```
 
 ## License

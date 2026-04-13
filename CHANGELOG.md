@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.5] - 2026-04-13
+
+### Added
+- **Web UI**: Responsive web interface with React + shadcn/ui (desktop + mobile)
+- **REST API**: FastAPI backend (`api.py`) with 9 endpoints wrapping CodenameManager
+- Chinese/English bilingual switching in web UI (stored in localStorage)
+- `python -m codename_generator web` command to start web server
+- 24 new API tests in `tests/test_api.py` (75 total)
+
+### Changed
+- `pyproject.toml`: added `fastapi` and `uvicorn` as explicit dependencies
+- `CLAUDE.md`: updated architecture docs to include REST layer
+
+### Infrastructure
+- Frontend project in `web/` (Vite + React + TypeScript + pnpm)
+- Build output to `src/codename_generator/static/`
+- Vite dev server proxies API calls to FastAPI backend
+
 ## [0.0.4] - 2026-04-13
 
 ### Added
