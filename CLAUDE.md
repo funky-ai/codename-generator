@@ -5,7 +5,7 @@
 Python 3.12 MCP server + Web UI for managing project codenames. Built with FastMCP + FastAPI + Pydantic + SQLite.
 
 - Package manager: **uv** (Python), **pnpm** (frontend)
-- Current version: 0.0.4
+- Current version: 0.0.5
 - License: Apache 2.0
 
 ## Architecture
@@ -49,6 +49,9 @@ cd web && pnpm build                                 # Build to static/
 - Migrations are idempotent functions in `db.py`
 - Pydantic models for all input/output types
 - Type hints required on all function signatures
+- Docstrings required on all public functions (match `server.py` and `core.py` coverage)
+- Environment-sensitive config (CORS, host, port, DB path) must be configurable via env vars, never hardcoded for a single scenario
+- Every `import` must have a corresponding explicit entry in `pyproject.toml` dependencies — transitive deps don't count
 
 ## Testing Conventions
 
@@ -78,3 +81,28 @@ Available engineering workflows (invoke with `/workflow-*`):
 - Version bumps: update `pyproject.toml` version field
 - Changelog: update both `CHANGELOG.md` and `CHANGELOG-zh.md`
 - Bilingual documentation: maintain English and Chinese versions
+
+## Workflow Guardrails
+
+These rules supplement `/workflow-feature` to prevent known quality gaps (ref: 2026-04-13 incident postmortem).
+
+### Code Review — Full-stack scope
+- Python: security, performance, correctness, docstrings
+- Frontend (`web/`): audit `package.json` for unused dependencies, check consistency with backend patterns
+- Cross-layer: verify all imports have explicit dependency declarations
+
+### Documentation — Mandatory checklist
+Every feature must check and update these files (if applicable):
+- [ ] `README.md` + `README-zh.md`
+- [ ] `CHANGELOG.md` + `CHANGELOG-zh.md`
+- [ ] `CONTRIBUTING.md` + `CONTRIBUTING-zh.md`
+- [ ] `CLAUDE.md`
+- [ ] Docstrings on all new public functions
+
+### Deploy Checklist — Dependency audit
+- [ ] `grep -r "^import\|^from" src/` — every third-party package listed in `pyproject.toml` dependencies?
+- [ ] `web/package.json` — every dependency actually imported somewhere in `web/src/`?
+- [ ] No hardcoded config that should be env-var controlled
+
+### Config-first principle
+When the user mentions a future deployment scenario (cloud, multi-user, public access), make related config (CORS origins, auth, rate limits) **environment-variable configurable at implementation time**, not as a follow-up task.
