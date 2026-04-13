@@ -5,7 +5,7 @@
 Python 3.12 MCP server for managing project codenames. Built with FastMCP + Pydantic + SQLite.
 
 - Package manager: **uv**
-- Current version: 0.0.3
+- Current version: 0.0.4
 - License: Apache 2.0
 
 ## Architecture
