@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.6] - 2026-04-16
+
+### Added
+- **Project logo**: CN tag logo integrated into Web UI header and browser favicon
+- SVG static file serving route in `api.py` for root-level assets (logo, icons)
+- 2 new tests for SVG serving endpoint (exists + 404)
+- 4 missing docstrings added to `core.py` and `server.py`
+
+### Changed
+- CLAUDE.md: added Mandatory Workflow Rule — all code changes must invoke a workflow before implementation
+
+### Fixed
+- FastAPI app version corrected from `0.0.4` to `0.0.6` (was missed in v0.0.5 release)
+- Replaced default favicon with project-branded CN logo
+
 ## [0.0.5] - 2026-04-13
 
 ### Added

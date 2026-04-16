@@ -5,7 +5,7 @@
 Python 3.12 MCP server + Web UI for managing project codenames. Built with FastMCP + FastAPI + Pydantic + SQLite.
 
 - Package manager: **uv** (Python), **pnpm** (frontend)
-- Current version: 0.0.5
+- Current version: 0.0.6
 - License: Apache 2.0
 
 ## Architecture
