@@ -62,18 +62,21 @@ cd web && pnpm build                                 # Build to static/
 - Helper functions for common setup (e.g., `_add_one`)
 - Test both success paths and error cases (`ValueError` assertions)
 
-## Workflow Commands
+## Mandatory Rule
 
-Available engineering workflows (invoke with `/workflow-*`):
+Every code change MUST invoke the matching workflow BEFORE writing any code:
 
-| Command | When to Use |
-|---------|-------------|
-| `/workflow-feature` | New tool, new model, new MCP prompt, new feature |
-| `/workflow-bugfix` | Bug report, test failure, unexpected behavior |
-| `/workflow-incident` | MCP server crash, data corruption, production issue |
-| `/workflow-release` | Ready to tag a new version, publish changelog |
-| `/workflow-health` | Periodic review, refactoring session, debt assessment |
-| `/workflow-standup` | Start of work session, progress summary |
+| Trigger | Workflow |
+|---------|----------|
+| Any new feature, UI change, new API endpoint, new tool | `/workflow-feature` |
+| Bug report, test failure, unexpected behavior | `/workflow-bugfix` |
+| Server crash, data corruption, service outage | `/workflow-incident` |
+| Version bump, changelog, publish | `/workflow-release` |
+| Refactoring, tech debt, periodic review | `/workflow-health` |
+| Start of work session, progress check | `/workflow-standup` |
+
+**No exceptions.** "Looks simple" is not a valid reason to skip.
+If uncertain which workflow applies, ask the user before proceeding.
 
 ## Git Conventions
 

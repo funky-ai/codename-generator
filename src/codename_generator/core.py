@@ -24,6 +24,7 @@ class CodenameManager:
     """Manages the codename inventory. Each method opens/closes its own connection."""
 
     def __init__(self, db_path: Path) -> None:
+        """Initialize the manager with a database path."""
         self.db_path = db_path
         db.init_db(db_path)
 

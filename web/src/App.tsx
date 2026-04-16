@@ -73,7 +73,10 @@ export default function App() {
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
 
-          <h1 className="text-lg font-semibold mr-6">{t("appName")}</h1>
+          <div className="flex items-center gap-2 mr-6 shrink-0">
+            <img src="/logo.svg" alt="Logo" className="h-6 shrink-0" />
+            <h1 className="text-lg font-semibold whitespace-nowrap">{t("appName")}</h1>
+          </div>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">

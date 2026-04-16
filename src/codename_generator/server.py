@@ -270,6 +270,7 @@ def view_logs(
     description="Generate a batch of person-themed codename candidates for the inventory.",
 )
 def prompt_generate_persons(count: int = 5, sub_theme: str = "science") -> str:
+    """Generate a prompt for creating person-themed codename candidates."""
     return f"""Generate {count} codename candidates for the 'person' theme with sub_theme '{sub_theme}'.
 
 Requirements:
@@ -297,6 +298,7 @@ After generating, use the add_codenames tool to add them to the inventory."""
     description="Generate a batch of animal-themed codename candidates for the inventory.",
 )
 def prompt_generate_animals(count: int = 5) -> str:
+    """Generate a prompt for creating animal-themed codename candidates."""
     return f"""Generate {count} codename candidates for the 'animal' theme.
 
 Requirements:
@@ -324,6 +326,7 @@ After generating, use the add_codenames tool to add them to the inventory."""
     description="Walk through the process of assigning a codename.",
 )
 def prompt_assign_workflow() -> str:
+    """Generate a prompt for the codename assignment workflow."""
     return """I need to assign a codename.
 
 Please follow these steps:

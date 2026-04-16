@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,7 +33,7 @@ def _get_db_path() -> Path:
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Codename Generator", version="0.0.4")
+app = FastAPI(title="Codename Generator", version="0.0.5")
 
 _cors_origins = os.environ.get("CODENAME_CORS_ORIGINS", "*").split(",")
 
@@ -190,6 +190,15 @@ def view_logs(
 def root() -> FileResponse:
     """Serve the web frontend."""
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/{filename:path}.svg")
+def serve_svg(filename: str) -> FileResponse:
+    """Serve SVG files from static root (logo, icons, etc.)."""
+    filepath = STATIC_DIR / f"{filename}.svg"
+    if filepath.is_file():
+        return FileResponse(filepath, media_type="image/svg+xml")
+    raise HTTPException(status_code=404, detail="Not found")
 
 
 if STATIC_DIR.is_dir():

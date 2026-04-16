@@ -277,3 +277,22 @@ class TestStaticFiles:
             res = client.get("/")
             assert res.status_code == 200
             assert "html" in res.headers.get("content-type", "")
+
+    def test_serve_svg_exists(self, client: TestClient):
+        """Existing SVG files in static root should be served."""
+        static_dir = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "src",
+            "codename_generator",
+            "static",
+        )
+        if os.path.isfile(os.path.join(static_dir, "logo.svg")):
+            res = client.get("/logo.svg")
+            assert res.status_code == 200
+            assert "image/svg+xml" in res.headers.get("content-type", "")
+
+    def test_serve_svg_not_found(self, client: TestClient):
+        """Non-existent SVG files should return 404."""
+        res = client.get("/nonexistent.svg")
+        assert res.status_code == 404
