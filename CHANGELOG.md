@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2026-04-17
+
+### Added
+- **Two independent frontend clients.** The admin UI and the public-facing user UI now ship as separate pnpm packages and run on independent processes/ports, sharing the same SQLite database and REST surface.
+  - New `web-user/` package — read-only client with pages: Home (simplified overview with Available / Total / Assigned cards and two CTAs), Browse (read-only inventory table with search / theme / status filters), Draw (random suggestions, no Assign action), Assignments (read-only).
+  - `web-user/src/lib/user-i18n.ts` — friendlier public-facing labels, layered over `@shared/lib/i18n-base`.
+  - `web-user` imports only GET methods from `@shared/lib/api` (no `addCodenames` / `updateCodename` / `assignCodename`).
+- **New `admin` CLI subcommand.** `python -m codename_generator admin` starts the admin HTTP server on port `8001` (serves `static_admin/`), in parallel with `python -m codename_generator web` on port `8000` (serves `static_user/`).
+- `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST` env vars override the default bind host + ports without code changes.
+- `create_app(mode)` factory in `api.py` — returns a FastAPI instance wired for either `"user"` or `"admin"` static mounts. Module-level `app` is now `create_app("user")`, so `uvicorn codename_generator.api:app` serves the user bundle by default.
+
+### Changed
+- **Breaking (for operators only):** `python -m codename_generator web` now serves the user frontend, not the admin frontend. Run `python -m codename_generator admin` to get the admin UI.
+- Static output path: the single `src/codename_generator/static/` tree is replaced by `src/codename_generator/static_admin/` (built by `web-admin`) and `src/codename_generator/static_user/` (built by `web-user`). `.gitignore` updated accordingly.
+- `web-admin/vite.config.ts` builds into `../src/codename_generator/static_admin/` and proxies `/api` to `http://127.0.0.1:8001` (admin server).
+- FastAPI app `title` includes the mode (`Codename Generator (user)` / `Codename Generator (admin)`) to make process origin obvious in `/openapi.json`.
+- `tests/test_api.py` static-dir references now point at `static_user/` (module-level `app` is user mode).
+
+### Verified
+- `pytest tests/ -v`: 77/77 pass.
+- `ruff check src/ tests/`: clean.
+- `cd web-admin && pnpm build` and `cd web-user && pnpm build` both succeed, emitting into `static_admin/` and `static_user/` respectively.
+- Smoke tests: both processes serve their own bundle (`http://127.0.0.1:8000` → user UI, `http://127.0.0.1:8001` → admin UI), `/openapi.json` reports version `0.1.0` on both, `/api/stats` returns identical payloads, admin Draw has Assign buttons, user Draw does not.
+
 ## [0.0.7] - 2026-04-17
 
 ### Changed

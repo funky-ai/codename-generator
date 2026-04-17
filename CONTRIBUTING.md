@@ -17,20 +17,22 @@ uv run pytest tests/ -v              # Run tests
 uv run ruff check src/ tests/        # Lint
 uv run ruff format src/ tests/       # Format
 uv run fastmcp dev src/codename_generator/server.py  # MCP Inspector
-uv run python -m codename_generator web              # Web server (:8000)
+uv run python -m codename_generator web              # User HTTP server  (:8000)
+uv run python -m codename_generator admin            # Admin HTTP server (:8001)
 ```
 
 ### Frontend Development
 
 Requires Node.js and pnpm.
 
-Frontend is a pnpm workspace with `web-admin/` (the admin SPA) and `web-shared/` (reusable API client, UI components, i18n base).
+Frontend is a pnpm workspace with `web-admin/` (admin SPA), `web-user/` (public-facing read-only SPA), and `web-shared/` (reusable API client, UI components, i18n base).
 
 ```bash
-pnpm install                  # From repo root — installs all workspace deps
-cd web-admin
-pnpm dev                      # Vite dev server (proxies API to :8000)
-pnpm build                    # Build to src/codename_generator/static/
+pnpm install                    # From repo root — installs all workspace deps
+cd web-admin && pnpm dev        # Vite :5174, proxies /api to :8001 (admin)
+cd web-admin && pnpm build      # Build to src/codename_generator/static_admin/
+cd web-user  && pnpm dev        # Vite :5173, proxies /api to :8000 (user)
+cd web-user  && pnpm build      # Build to src/codename_generator/static_user/
 ```
 
 ## Code Style

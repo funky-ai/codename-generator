@@ -90,16 +90,24 @@ uv sync
 
 ## Web 界面
 
-项目包含一个响应式 Web 界面，基于 React + shadcn/ui 构建。
+从 0.1.0 起，项目默认提供 **两个独立的 Web 客户端**。它们共享同一个 SQLite 数据库与 REST 接口，但以两个独立进程、独立端口运行：
+
+| 客户端 | 启动命令 | 默认端口 | 面向谁 | 包含页面 |
+|--------|---------|---------|-------|---------|
+| 前台（User） | `uv run python -m codename_generator web` | `8000` | 项目团队浏览 / 挑选代号 | 首页、浏览（只读）、随机抽取（仅建议）、分配记录 |
+| 后台（Admin） | `uv run python -m codename_generator admin` | `8001` | 运营 / 代号库维护者 | 仪表盘、代号库（含编辑 / 分配）、添加、随机抽取（含分配）、分配记录、操作日志 |
 
 ```bash
-# 启动 Web 服务
-uv run python -m codename_generator web
+# 同时运行两个客户端（分别开两个终端）
+uv run python -m codename_generator web     # http://127.0.0.1:8000  → 前台
+uv run python -m codename_generator admin   # http://127.0.0.1:8001  → 后台
 
-# 浏览器打开 http://127.0.0.1:8000
+# 通过环境变量 / 参数覆盖主机 / 端口
+CODENAME_HOST=0.0.0.0 CODENAME_WEB_PORT=8080 uv run python -m codename_generator web
+uv run python -m codename_generator admin --port 9001
 ```
 
-Web 界面支持所有操作：仪表盘统计、代号库浏览、添加代号、随机抽取、分配、查看日志。支持中英文切换。
+两个进程读写同一份 `CODENAME_DB_PATH`；SQLite WAL 模式可安全处理并发读写。两个客户端都支持中英文切换。
 
 ## 开发
 
@@ -110,10 +118,12 @@ uv run pytest tests/ -v
 # 启动 MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
 
-# 前端开发（pnpm workspace：web-admin + web-shared）
-pnpm install              # 安装 workspace 依赖（在仓库根目录执行）
-cd web-admin && pnpm dev  # Vite 开发服务器（API 代理到 :8000）
-cd web-admin && pnpm build  # 构建到 src/codename_generator/static/
+# 前端开发（pnpm workspace：web-admin + web-user + web-shared）
+pnpm install                # 安装 workspace 依赖（在仓库根目录执行）
+cd web-admin && pnpm dev    # Vite :5174，/api 代理到 http://127.0.0.1:8001（后台）
+cd web-admin && pnpm build  # 构建到 src/codename_generator/static_admin/
+cd web-user  && pnpm dev    # Vite :5173，/api 代理到 http://127.0.0.1:8000（前台）
+cd web-user  && pnpm build  # 构建到 src/codename_generator/static_user/
 ```
 
 ## 许可证

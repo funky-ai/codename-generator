@@ -12,12 +12,12 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../src/codename_generator/static_admin",
+    outDir: "../src/codename_generator/static_user",
     emptyOutDir: true,
   },
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:8001",
+      "/api": "http://127.0.0.1:8000",
     },
   },
 });

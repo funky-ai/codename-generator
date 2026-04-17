@@ -2,6 +2,30 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
+## [0.1.0] - 2026-04-17
+
+### 新增
+- **前后台双客户端独立部署。** 原先的单一管理界面拆成两个独立的 pnpm 包与独立进程/端口，后端 SQLite 与 REST 接口完全共享。
+  - 新增 `web-user/` 包 —— 面向终端用户的只读客户端。页面：首页（精简版概览，展示 当前可用 / 代号总数 / 已分配 三张卡 + 两个 CTA）、浏览（只读代号库，含搜索 / 主题 / 状态筛选）、随机抽取（仅建议，不含分配按钮）、分配记录（只读）。
+  - `web-user/src/lib/user-i18n.ts` —— 更友好的面向公众的中英文案，覆盖在 `@shared/lib/i18n-base` 之上。
+  - `web-user` 只从 `@shared/lib/api` 引用 GET 方法（不引用 `addCodenames` / `updateCodename` / `assignCodename`）。
+- **新增 CLI 子命令 `admin`。** `python -m codename_generator admin` 在 `8001` 端口启动后台 HTTP 服务器（挂载 `static_admin/`），与 `python -m codename_generator web` 在 `8000` 端口的前台服务器（挂载 `static_user/`）并行运行。
+- 新增环境变量 `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST`，可覆盖默认绑定地址与端口，无需改代码。
+- `api.py` 新增 `create_app(mode)` 工厂函数 —— 根据 `"user"` 或 `"admin"` 返回挂好对应静态目录的 FastAPI 实例。模块顶层 `app` 现在为 `create_app("user")`，因此 `uvicorn codename_generator.api:app` 默认启动前台 bundle。
+
+### 变更
+- **破坏性变更（仅影响部署）：** `python -m codename_generator web` 现在启动的是前台客户端，而非后台。要访问后台请使用 `python -m codename_generator admin`。
+- 静态产物路径：原 `src/codename_generator/static/` 替换为 `src/codename_generator/static_admin/`（由 `web-admin` 构建）和 `src/codename_generator/static_user/`（由 `web-user` 构建）。`.gitignore` 同步更新。
+- `web-admin/vite.config.ts` 构建输出至 `../src/codename_generator/static_admin/`，dev server 代理 `/api` 至 `http://127.0.0.1:8001`（后台进程）。
+- FastAPI 应用的 `title` 加上模式后缀（`Codename Generator (user)` / `Codename Generator (admin)`），便于通过 `/openapi.json` 识别进程来源。
+- `tests/test_api.py` 静态目录引用更新为 `static_user/`（与模块顶层 `app` 的 user 模式一致）。
+
+### 验证
+- `pytest tests/ -v`：77/77 通过。
+- `ruff check src/ tests/`：无错误。
+- `cd web-admin && pnpm build` 与 `cd web-user && pnpm build` 均成功，分别输出到 `static_admin/` 与 `static_user/`。
+- 冒烟测试：两个进程各自服务自己的 bundle（`http://127.0.0.1:8000` → 前台 UI，`http://127.0.0.1:8001` → 后台 UI），两端 `/openapi.json` 版本均为 `0.1.0`，`/api/stats` 返回一致；后台 Draw 有「分配」按钮，前台 Draw 无。
+
 ## [0.0.7] - 2026-04-17
 
 ### 变更
