@@ -5,7 +5,7 @@
 Python 3.12 MCP server + Web UI for managing project codenames. Built with FastMCP + FastAPI + Pydantic + SQLite.
 
 - Package manager: **uv** (Python), **pnpm** (frontend)
-- Current version: 0.0.7
+- Current version: 0.1.0-rc
 - License: Apache 2.0
 
 ## Architecture
@@ -29,8 +29,8 @@ Frontend is a pnpm workspace with three packages, each serving a distinct role:
 Imports from shared code use the `@shared/*` alias configured in each app's `vite.config.ts` and `tsconfig.json`.
 
 - Data directory: `data/codenames.db` (gitignored, runtime data)
-- Two themes: `person` (with `sub_theme`) and `animal`
-- All IDs use CSPRNG (`secrets` module): `CN-xxxxxxxx`, `ASN-xxxxxxxx`
+- Categories are a first-class tree entity (max depth 3, adjacency-list). Codenames bind to **leaf** categories via `category_id`. Two top-level defaults seed on first run: `person` (10 leaf sub-categories — philosophy / art / science / economics / literature / music / politics / medicine / mathematics / engineering) and `animal` (3 — raptor / marine / mammal). Users can add / re-parent / archive / delete categories via the admin UI or the `create_category` / `update_category` / `delete_category` MCP tools.
+- All IDs use CSPRNG (`secrets` module): `CN-xxxxxxxx`, `ASN-xxxxxxxx`, `CAT-xxxxxxxx`
 
 ## Development Commands
 

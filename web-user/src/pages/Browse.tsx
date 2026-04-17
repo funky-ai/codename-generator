@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@shared/components/ui/card";
 import { Badge } from "@shared/components/ui/badge";
 import { Input } from "@shared/components/ui/input";
@@ -18,16 +18,49 @@ import {
   TableRow,
 } from "@shared/components/ui/table";
 import { Search } from "lucide-react";
-import { api, type Codename } from "@shared/lib/api";
+import { api, type Category, type Codename } from "@shared/lib/api";
 import { useLang } from "@/lib/user-i18n";
 
+interface CategoryOption {
+  category_id: string;
+  label: string;
+}
+
+function collectAll(tree: Category[], lang: "zh" | "en"): CategoryOption[] {
+  const out: CategoryOption[] = [];
+  const walk = (node: Category, path: string[]) => {
+    const displayName = lang === "zh" ? node.name_zh : node.name_en;
+    const nextPath = [...path, displayName];
+    out.push({ category_id: node.category_id, label: nextPath.join(" › ") });
+    if (node.children) for (const child of node.children) walk(child, nextPath);
+  };
+  for (const root of tree) walk(root, []);
+  return out;
+}
+
 export default function BrowsePage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [codenames, setCodenames] = useState<Codename[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [themeFilter, setThemeFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tree, setTree] = useState<Category[]>([]);
+
+  const fetchTree = useCallback(async () => {
+    try {
+      const data = await api.listCategories({ tree: true });
+      setTree(data);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTree();
+  }, [fetchTree]);
+
+  const options = useMemo(() => collectAll(tree, lang), [tree, lang]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -37,7 +70,7 @@ export default function BrowsePage() {
         setCodenames(results);
       } else {
         const results = await api.getCodenames({
-          theme: themeFilter === "all" ? undefined : themeFilter,
+          category_id: categoryFilter === "all" ? undefined : categoryFilter,
           status: statusFilter === "all" ? undefined : statusFilter,
         });
         setCodenames(results);
@@ -45,7 +78,7 @@ export default function BrowsePage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, themeFilter, statusFilter]);
+  }, [searchQuery, categoryFilter, statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -63,14 +96,17 @@ export default function BrowsePage() {
             className="pl-9"
           />
         </div>
-        <Select value={themeFilter} onValueChange={setThemeFilter}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectValue placeholder={t("category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("all")} {t("theme")}</SelectItem>
-            <SelectItem value="person">{t("person")}</SelectItem>
-            <SelectItem value="animal">{t("animal")}</SelectItem>
+            <SelectItem value="all">{t("all")} {t("category")}</SelectItem>
+            {options.map((opt) => (
+              <SelectItem key={opt.category_id} value={opt.category_id}>
+                {opt.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -100,7 +136,7 @@ export default function BrowsePage() {
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("nameEn")}</TableHead>
                   <TableHead>{t("nameZh")}</TableHead>
-                  <TableHead>{t("theme")}</TableHead>
+                  <TableHead>{t("category")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("brief")}</TableHead>
                 </TableRow>
@@ -112,17 +148,18 @@ export default function BrowsePage() {
                     <TableCell>{c.name_en}</TableCell>
                     <TableCell>{c.name_zh}</TableCell>
                     <TableCell>
-                      <Badge variant={c.theme === "person" ? "default" : "secondary"}>
-                        {c.theme === "person" ? t("person") : t("animal")}
-                      </Badge>
-                      {c.sub_theme && (
-                        <span className="ml-1 text-xs text-muted-foreground">{c.sub_theme}</span>
-                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {c.category_path.join(" › ")}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={c.status === "available" ? "outline" : "secondary"}
-                        className={c.status === "available" ? "border-green-300 text-green-700" : ""}
+                        className={
+                          c.status === "available"
+                            ? "border-green-300 text-green-700"
+                            : ""
+                        }
                       >
                         {c.status === "available" ? t("available") : t("assigned")}
                       </Badge>
@@ -146,18 +183,20 @@ export default function BrowsePage() {
                       <div className="text-sm text-muted-foreground">
                         {c.name_en} / {c.name_zh}
                       </div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.category_path.join(" › ")}
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Badge variant={c.theme === "person" ? "default" : "secondary"}>
-                        {c.theme === "person" ? t("person") : t("animal")}
-                      </Badge>
-                      <Badge
-                        variant={c.status === "available" ? "outline" : "secondary"}
-                        className={c.status === "available" ? "border-green-300 text-green-700" : ""}
-                      >
-                        {c.status === "available" ? t("available") : t("assigned")}
-                      </Badge>
-                    </div>
+                    <Badge
+                      variant={c.status === "available" ? "outline" : "secondary"}
+                      className={
+                        c.status === "available"
+                          ? "border-green-300 text-green-700"
+                          : ""
+                      }
+                    >
+                      {c.status === "available" ? t("available") : t("assigned")}
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{c.brief}</p>
                 </CardContent>

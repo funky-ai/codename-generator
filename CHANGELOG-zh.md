@@ -4,7 +4,33 @@
 
 ## [Unreleased]
 
-### 新增
+### 新增 —— 类目升格为一等实体
+
+- **新增 `categories` 表**（adjacency list）：`category_id`（CAT-xxxxxxxx，CSPRNG）/ `slug` / `name_en` / `name_zh` / `parent_id` / `sort_order` / `is_archived` / `created_at`。在 `parent_id IS NULL` 条件下对 `slug` 建 partial unique index（SQLite 的 `UNIQUE` 不对 NULL 去重，必须补这层约束）。
+- **5 个新 MCP 工具** 与 **5 个新 REST 端点** 管理类目：
+  - `create_category` / `list_categories` / `get_category_tree` / `update_category` / `delete_category`
+  - `GET/POST/PUT/DELETE /api/categories` + `GET /api/categories/{id}`
+- **Admin UI 新增「类目管理」页面**（`web-admin/src/pages/Categories.tsx`）：左侧树形（支持展开/折叠），右侧编辑表单（改名 / 重挂载 / 排序 / 归档 / 删除），父类目下拉根据子树高度自动过滤不合法选项。
+- **`_migrate_v4_categories`** 迁移：幂等；种子 2 个顶层 + 13 个叶子（人物 / 动物 顶层；哲学 / 艺术 / 科学 / 经济学 / 文学 / 音乐 / 政治 / 医学 / 数学 / 工程；猛禽 / 海洋 / 哺乳动物）；重建 `codename_inventory`，把 `theme` / `sub_theme` 换成 `category_id`（INTEGER FK）。老数据中 `(animal, NULL)` 行迁移到 animal 顶层（非叶子，迁移期唯一例外，详见「迁移说明」）。
+- `Codename` 新增 `category_path` 字段 —— 从根到叶的 slug 数组，一次递归 CTE 统一填充，不会 N+1。
+- 新增测试：`tests/test_categories.py`（28 条）覆盖 CRUD + 深度 / 环 / 归档不变式；`tests/test_migrations.py`（12 条）覆盖 fresh DB 种子、v3 升级、幂等、用户自建保留。
+
+### 变更 —— BREAKING
+
+- **从 `Codename` / `CodenameInput` / `CodenameUpdate` / MCP 工具 / REST 端点统一移除 `theme` / `sub_theme` 字段。** 改为 `category_id`（公共 `CAT-xxxxxxxx`），必须解析到一个**非归档叶子类目**。
+- **过滤参数改造**：`list_inventory` / `draw_random` / `GET /api/codenames` / `GET /api/codenames/random` 的 `theme` / `sub_theme` → `category_id` + `include_descendants: bool = True`（默认包含子树）。
+- **`InventoryStats` 响应结构**：移除 `by_theme` / `available_by_theme`，改为 `by_category: list[CategoryStat]`（每类目直接计数，不卷起子孙）。
+- **`logs.action` CHECK 扩展**：新增 `category_added` / `category_updated` / `category_archived` / `category_deleted`。
+- Admin UI 的 Add / Inventory / Draw / Dashboard，以及 `web-user` 的 Browse / Draw 全部改造为类目模型；下拉项以 `父类 › 子类` 的路径形式展示。
+- MCP 服务端 instructions 与两个代码生成 prompt（`generate_person_codenames` / `generate_animal_codenames`）调整为先 `get_category_tree` 解析叶子 `category_id`，再 `add_codenames`。
+
+### 迁移说明
+
+- 不变式：代号只能挂**非归档叶子类目**；类目深度 ≤ 3；重挂载拒绝环与子树高度越界；删除拒绝存在代号或非归档子类目的节点。
+- **升级前请备份 `data/codenames.db`**。`0.0.7` → `0.1.0-rc` 时会自动种子类目并重建 codename_inventory。老的 `(animal, NULL)` 行会落在 animal 顶层（非叶子，迁移期唯一例外），建议通过 Categories 页面挪到具体的动物叶子（猛禽 / 海洋 / 哺乳动物 或自建子类目）。
+
+### 新增 —— 前后台双客户端独立部署
+
 - **前后台双客户端独立部署。** 原先的单一管理界面拆成两个独立的 pnpm 包与独立进程/端口，后端 SQLite 与 REST 接口完全共享。
   - 新增 `web-user/` 包 —— 面向终端用户的只读客户端。页面：首页（精简版概览，展示 当前可用 / 代号总数 / 已分配 三张卡 + 两个 CTA）、浏览（只读代号库，含搜索 / 主题 / 状态筛选）、随机抽取（仅建议，不含分配按钮）、分配记录（只读）。
   - `web-user/src/lib/user-i18n.ts` —— 更友好的面向公众的中英文案，覆盖在 `@shared/lib/i18n-base` 之上。
@@ -21,10 +47,10 @@
 - `tests/test_api.py` 静态目录引用更新为 `static_user/`（与模块顶层 `app` 的 user 模式一致）。
 
 ### 验证
-- `pytest tests/ -v`：77/77 通过。
+- `pytest tests/ -v`：**148/148 通过**（test_core.py 56、test_api.py 52、test_categories.py 28、test_migrations.py 12）。
 - `ruff check src/ tests/`：无错误。
 - `cd web-admin && pnpm build` 与 `cd web-user && pnpm build` 均成功，分别输出到 `static_admin/` 与 `static_user/`。
-- 冒烟测试：两个进程各自服务自己的 bundle（`http://127.0.0.1:8000` → 前台 UI，`http://127.0.0.1:8001` → 后台 UI），两端 `/openapi.json` 版本均为 `0.1.0`，`/api/stats` 返回一致；后台 Draw 有「分配」按钮，前台 Draw 无。
+- 冒烟测试：后台服务（`:8001`）加载 Dashboard 展示迁移后的真实数据；Categories 页面首次加载 15 个类目的树形并自动展开顶层；Add 页面下拉精确列出 13 个叶子类目（`父类 › 子类` 路径形式）；`/openapi.json` 版本为 `0.1.0`。
 
 ## [0.0.7] - 2026-04-17
 

@@ -24,11 +24,11 @@ from pydantic import BaseModel
 
 from .core import CodenameManager
 from .db import DEFAULT_LOG_LIMIT
-from .models import CodenameInput, CodenameUpdate
+from .models import CategoryInput, CategoryUpdate, CodenameInput, CodenameUpdate
 
 AppMode = Literal["user", "admin"]
 
-API_VERSION = "0.0.7"
+API_VERSION = "0.1.0-rc"
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -82,9 +82,16 @@ class UpdateRequest(BaseModel):
     name: Optional[str] = None
     name_en: Optional[str] = None
     name_zh: Optional[str] = None
-    theme: Optional[Literal["person", "animal"]] = None
-    sub_theme: Optional[str] = None
+    category_id: Optional[str] = None
     brief: Optional[str] = None
+    operator: str = "web"
+
+
+class CreateCategoryRequest(CategoryInput):
+    operator: str = "web"
+
+
+class UpdateCategoryRequest(CategoryUpdate):
     operator: str = "web"
 
 
@@ -120,7 +127,77 @@ def create_app(mode: AppMode = "user") -> FastAPI:
     async def _value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
-    # ---- API routes ----
+    # ---- Categories routes ----
+
+    @app.get("/api/categories")
+    def list_categories(
+        tree: bool = False,
+        include_archived: bool = False,
+        parent_category_id: Optional[str] = None,
+    ) -> list[dict]:
+        """List categories.
+
+        Query params:
+          - ``tree=1`` returns a nested tree (children populated).
+          - ``parent_category_id`` filters flat results by direct parent;
+            empty string means top-level only.
+        """
+        manager = get_manager()
+        if tree:
+            results = manager.get_category_tree(include_archived=include_archived)
+        else:
+            results = manager.list_categories(
+                include_archived=include_archived,
+                parent_category_id=parent_category_id,
+            )
+        return [r.model_dump() for r in results]
+
+    @app.get("/api/categories/{category_id}")
+    def get_category(category_id: str) -> dict:
+        """Fetch a single category by CAT-xxxxxxxx id."""
+        # list_categories + filter is simplest given the manager API
+        results = get_manager().list_categories(include_archived=True)
+        for r in results:
+            if r.category_id == category_id:
+                return r.model_dump()
+        raise HTTPException(
+            status_code=404, detail=f"Category '{category_id}' not found"
+        )
+
+    @app.post("/api/categories")
+    def create_category(req: CreateCategoryRequest) -> dict:
+        """Create a new category."""
+        category = CategoryInput(
+            slug=req.slug,
+            name_en=req.name_en,
+            name_zh=req.name_zh,
+            parent_category_id=req.parent_category_id,
+            sort_order=req.sort_order,
+        )
+        result = get_manager().create_category(category, req.operator)
+        return result.model_dump()
+
+    @app.put("/api/categories/{category_id}")
+    def update_category(category_id: str, req: UpdateCategoryRequest) -> dict:
+        """Update a category (rename, re-parent, archive, sort)."""
+        update = CategoryUpdate(
+            slug=req.slug,
+            name_en=req.name_en,
+            name_zh=req.name_zh,
+            parent_category_id=req.parent_category_id,
+            sort_order=req.sort_order,
+            is_archived=req.is_archived,
+        )
+        result = get_manager().update_category(category_id, update, req.operator)
+        return result.model_dump()
+
+    @app.delete("/api/categories/{category_id}")
+    def delete_category(category_id: str, operator: str = "web") -> dict:
+        """Delete a category. Refused if codenames or non-archived subcategories exist."""
+        get_manager().delete_category(category_id, operator)
+        return {"deleted": category_id}
+
+    # ---- Codenames routes ----
 
     @app.get("/api/stats")
     def stats() -> dict:
@@ -129,12 +206,16 @@ def create_app(mode: AppMode = "user") -> FastAPI:
 
     @app.get("/api/codenames")
     def list_codenames(
-        theme: Optional[str] = None,
+        category_id: Optional[str] = None,
+        include_descendants: bool = True,
         status: Optional[str] = None,
-        sub_theme: Optional[str] = None,
     ) -> list[dict]:
-        """List codenames with optional filters by theme, status, and sub_theme."""
-        results = get_manager().list_inventory(theme=theme, status=status, sub_theme=sub_theme)
+        """List codenames filtered by category subtree and status."""
+        results = get_manager().list_inventory(
+            category_id=category_id,
+            include_descendants=include_descendants,
+            status=status,
+        )
         return [r.model_dump() for r in results]
 
     @app.get("/api/codenames/search")
@@ -146,10 +227,15 @@ def create_app(mode: AppMode = "user") -> FastAPI:
     @app.get("/api/codenames/random")
     def draw_random(
         count: int = Query(default=3, ge=1, le=50),
-        theme: Optional[str] = None,
+        category_id: Optional[str] = None,
+        include_descendants: bool = True,
     ) -> list[dict]:
         """Draw random available codenames as suggestions (does not assign)."""
-        results = get_manager().draw_random(theme=theme, count=count)
+        results = get_manager().draw_random(
+            category_id=category_id,
+            include_descendants=include_descendants,
+            count=count,
+        )
         return [r.model_dump() for r in results]
 
     @app.post("/api/codenames")
@@ -165,8 +251,7 @@ def create_app(mode: AppMode = "user") -> FastAPI:
             name=req.name,
             name_en=req.name_en,
             name_zh=req.name_zh,
-            theme=req.theme,
-            sub_theme=req.sub_theme,
+            category_id=req.category_id,
             brief=req.brief,
         )
         result = get_manager().update_codename(update, req.operator)
@@ -221,6 +306,6 @@ def create_app(mode: AppMode = "user") -> FastAPI:
 
 
 # Module-level app for direct ASGI invocation (e.g. `uvicorn codename_generator.api:app`).
-# Defaults to user mode; the admin frontend is served by constructing a second instance
-# via ``create_app("admin")`` from the ``admin`` CLI subcommand.
+# Defaults to user mode; the admin frontend is served by constructing a second
+# instance via ``create_app("admin")`` from the ``admin`` CLI subcommand.
 app = create_app("user")
