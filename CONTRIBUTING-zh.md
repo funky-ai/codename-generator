@@ -24,11 +24,13 @@ uv run python -m codename_generator web              # Web 服务 (:8000)
 
 需要 Node.js 和 pnpm。
 
+前端是一个 pnpm workspace，包含 `web-admin/`（后台 SPA）和 `web-shared/`（可复用的 API client、UI 组件、i18n 基线）。
+
 ```bash
-cd web
-pnpm install          # 安装依赖
-pnpm dev              # Vite 开发服务器（API 代理到 :8000）
-pnpm build            # 构建到 src/codename_generator/static/
+pnpm install                  # 在仓库根目录执行，安装所有 workspace 依赖
+cd web-admin
+pnpm dev                      # Vite 开发服务器（API 代理到 :8000）
+pnpm build                    # 构建到 src/codename_generator/static/
 ```
 
 ## 代码规范
