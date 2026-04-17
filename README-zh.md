@@ -110,10 +110,10 @@ uv run pytest tests/ -v
 # 启动 MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
 
-# 前端开发（需要 Node.js + pnpm）
-cd web && pnpm install    # 安装前端依赖
-cd web && pnpm dev        # Vite 开发服务器（API 代理到 :8000）
-cd web && pnpm build      # 构建到 src/codename_generator/static/
+# 前端开发（pnpm workspace：web-admin + web-shared）
+pnpm install              # 安装 workspace 依赖（在仓库根目录执行）
+cd web-admin && pnpm dev  # Vite 开发服务器（API 代理到 :8000）
+cd web-admin && pnpm build  # 构建到 src/codename_generator/static/
 ```
 
 ## 许可证

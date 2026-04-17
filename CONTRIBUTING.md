@@ -24,11 +24,13 @@ uv run python -m codename_generator web              # Web server (:8000)
 
 Requires Node.js and pnpm.
 
+Frontend is a pnpm workspace with `web-admin/` (the admin SPA) and `web-shared/` (reusable API client, UI components, i18n base).
+
 ```bash
-cd web
-pnpm install          # Install dependencies
-pnpm dev              # Vite dev server (proxies API to :8000)
-pnpm build            # Build to src/codename_generator/static/
+pnpm install                  # From repo root — installs all workspace deps
+cd web-admin
+pnpm dev                      # Vite dev server (proxies API to :8000)
+pnpm build                    # Build to src/codename_generator/static/
 ```
 
 ## Code Style

@@ -20,7 +20,12 @@ Five-layer architecture in `src/codename_generator/`:
 | Data Access | `db.py` | SQLite schema, migrations, CRUD operations |
 | Data Models | `models.py` | Pydantic input/output schemas |
 
-Frontend source in `web/` (Vite + React + TypeScript + shadcn/ui), build output in `src/codename_generator/static/`.
+Frontend is a pnpm workspace with two packages:
+
+- `web-admin/` — admin SPA (Vite + React + TypeScript + shadcn/ui), build output in `src/codename_generator/static/`
+- `web-shared/` — shared library (API client, UI components, i18n base, hooks) consumed by admin; future user client will also consume it
+
+Imports from shared code use the `@shared/*` alias configured in `web-admin/vite.config.ts` and `tsconfig.json`.
 
 - Data directory: `data/codenames.db` (gitignored, runtime data)
 - Two themes: `person` (with `sub_theme`) and `animal`
@@ -36,10 +41,10 @@ uv run python -m codename_generator                  # Run MCP server
 uv run python -m codename_generator web              # Run Web server (:8000)
 uv run python -m codename_generator web --port 3000  # Web server on custom port
 
-# Frontend development
-cd web && pnpm install                               # Install frontend dependencies
-cd web && pnpm dev                                   # Vite dev server (proxy to :8000)
-cd web && pnpm build                                 # Build to static/
+# Frontend development (pnpm workspace — run `pnpm install` from repo root)
+pnpm install                                         # Install all workspace dependencies
+cd web-admin && pnpm dev                             # Vite dev server (proxy to :8000)
+cd web-admin && pnpm build                           # Build to src/codename_generator/static/
 ```
 
 ## Code Conventions

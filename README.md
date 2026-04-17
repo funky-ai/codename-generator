@@ -110,10 +110,10 @@ uv run pytest tests/ -v
 # Launch MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
 
-# Frontend development (requires Node.js + pnpm)
-cd web && pnpm install    # Install frontend dependencies
-cd web && pnpm dev        # Vite dev server (proxy API to :8000)
-cd web && pnpm build      # Build to src/codename_generator/static/
+# Frontend development (pnpm workspace: web-admin + web-shared)
+pnpm install              # Install all workspace dependencies (run from repo root)
+cd web-admin && pnpm dev  # Vite dev server (proxy API to :8000)
+cd web-admin && pnpm build  # Build to src/codename_generator/static/
 ```
 
 ## License
