@@ -20,12 +20,13 @@ Five-layer architecture in `src/codename_generator/`:
 | Data Access | `db.py` | SQLite schema, migrations, CRUD operations |
 | Data Models | `models.py` | Pydantic input/output schemas |
 
-Frontend is a pnpm workspace with two packages:
+Frontend is a pnpm workspace with three packages, each serving a distinct role:
 
-- `web-admin/` — admin SPA (Vite + React + TypeScript + shadcn/ui), build output in `src/codename_generator/static/`
-- `web-shared/` — shared library (API client, UI components, i18n base, hooks) consumed by admin; future user client will also consume it
+- `web-admin/` — admin SPA (Vite + React + TypeScript + shadcn/ui), build output in `src/codename_generator/static_admin/`, consumed by the `admin` CLI subcommand.
+- `web-user/` — public-facing read-only SPA, build output in `src/codename_generator/static_user/`, consumed by the `web` CLI subcommand.
+- `web-shared/` — shared library (API client, UI components, i18n base translations, hooks) consumed by both clients.
 
-Imports from shared code use the `@shared/*` alias configured in `web-admin/vite.config.ts` and `tsconfig.json`.
+Imports from shared code use the `@shared/*` alias configured in each app's `vite.config.ts` and `tsconfig.json`.
 
 - Data directory: `data/codenames.db` (gitignored, runtime data)
 - Two themes: `person` (with `sub_theme`) and `animal`
@@ -38,13 +39,19 @@ uv sync                                              # Install Python dependenci
 uv run pytest tests/ -v                              # Run tests
 uv run fastmcp dev src/codename_generator/server.py  # Run MCP Inspector
 uv run python -m codename_generator                  # Run MCP server
-uv run python -m codename_generator web              # Run Web server (:8000)
-uv run python -m codename_generator web --port 3000  # Web server on custom port
+uv run python -m codename_generator web              # Run user  server — static_user/  (default :8000)
+uv run python -m codename_generator admin            # Run admin server — static_admin/ (default :8001)
+uv run python -m codename_generator web   --port 3000  # Override port
+uv run python -m codename_generator admin --port 3001  # Override port
+
+# Env vars: CODENAME_HOST, CODENAME_WEB_PORT, CODENAME_ADMIN_PORT, CODENAME_DB_PATH, CODENAME_CORS_ORIGINS
 
 # Frontend development (pnpm workspace — run `pnpm install` from repo root)
 pnpm install                                         # Install all workspace dependencies
-cd web-admin && pnpm dev                             # Vite dev server (proxy to :8000)
-cd web-admin && pnpm build                           # Build to src/codename_generator/static/
+cd web-admin && pnpm dev                             # Vite dev :5174, proxies /api to :8001 (admin)
+cd web-admin && pnpm build                           # Build to src/codename_generator/static_admin/
+cd web-user  && pnpm dev                             # Vite dev :5173, proxies /api to :8000 (user)
+cd web-user  && pnpm build                           # Build to src/codename_generator/static_user/
 ```
 
 ## Code Conventions

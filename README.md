@@ -90,16 +90,24 @@ Real, commonly recognizable animal species. No mythical creatures or species wit
 
 ## Web UI
 
-The project includes a responsive web interface built with React + shadcn/ui.
+Starting with 0.1.0 the project ships **two independent web clients** that share the same SQLite database and REST surface but run as separate processes on separate ports:
+
+| Client | Command | Default port | Who it's for | What's inside |
+|--------|---------|--------------|--------------|---------------|
+| User (public) | `uv run python -m codename_generator web` | `8000` | Project teams browsing / picking codenames | Home, Browse (read-only), Draw (suggestions only), Assignments |
+| Admin | `uv run python -m codename_generator admin` | `8001` | Ops / librarians managing the library | Dashboard, Inventory (edit + assign), Add, Draw (with Assign), Assignments, Logs |
 
 ```bash
-# Start web server
-uv run python -m codename_generator web
+# Run both at once (from separate shells)
+uv run python -m codename_generator web     # http://127.0.0.1:8000  → user client
+uv run python -m codename_generator admin   # http://127.0.0.1:8001  → admin client
 
-# Open http://127.0.0.1:8000 in your browser
+# Override host / ports
+CODENAME_HOST=0.0.0.0 CODENAME_WEB_PORT=8080 uv run python -m codename_generator web
+uv run python -m codename_generator admin --port 9001
 ```
 
-The web UI supports all operations: dashboard stats, inventory browsing, adding codenames, random draw, assigning, and viewing logs. Language can be toggled between Chinese and English.
+Both processes read / write the same `CODENAME_DB_PATH` — SQLite WAL mode safely handles the concurrency. Language can be toggled between Chinese and English on both clients.
 
 ## Development
 
@@ -110,10 +118,12 @@ uv run pytest tests/ -v
 # Launch MCP Inspector
 uv run fastmcp dev src/codename_generator/server.py
 
-# Frontend development (pnpm workspace: web-admin + web-shared)
-pnpm install              # Install all workspace dependencies (run from repo root)
-cd web-admin && pnpm dev  # Vite dev server (proxy API to :8000)
-cd web-admin && pnpm build  # Build to src/codename_generator/static/
+# Frontend development (pnpm workspace: web-admin + web-user + web-shared)
+pnpm install                # Install all workspace dependencies (run from repo root)
+cd web-admin && pnpm dev    # Vite :5174, proxies /api to http://127.0.0.1:8001 (admin)
+cd web-admin && pnpm build  # Build to src/codename_generator/static_admin/
+cd web-user  && pnpm dev    # Vite :5173, proxies /api to http://127.0.0.1:8000 (user)
+cd web-user  && pnpm build  # Build to src/codename_generator/static_user/
 ```
 
 ## License

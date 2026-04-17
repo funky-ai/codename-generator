@@ -17,20 +17,22 @@ uv run pytest tests/ -v              # 运行测试
 uv run ruff check src/ tests/        # 代码检查
 uv run ruff format src/ tests/       # 代码格式化
 uv run fastmcp dev src/codename_generator/server.py  # MCP Inspector
-uv run python -m codename_generator web              # Web 服务 (:8000)
+uv run python -m codename_generator web              # 前台（用户）HTTP 服务 (:8000)
+uv run python -m codename_generator admin            # 后台（管理）HTTP 服务 (:8001)
 ```
 
 ### 前端开发
 
 需要 Node.js 和 pnpm。
 
-前端是一个 pnpm workspace，包含 `web-admin/`（后台 SPA）和 `web-shared/`（可复用的 API client、UI 组件、i18n 基线）。
+前端是一个 pnpm workspace，包含 `web-admin/`（后台 SPA）、`web-user/`（面向终端用户的只读 SPA）和 `web-shared/`（可复用的 API client、UI 组件、i18n 基线）。
 
 ```bash
-pnpm install                  # 在仓库根目录执行，安装所有 workspace 依赖
-cd web-admin
-pnpm dev                      # Vite 开发服务器（API 代理到 :8000）
-pnpm build                    # 构建到 src/codename_generator/static/
+pnpm install                    # 在仓库根目录执行，安装所有 workspace 依赖
+cd web-admin && pnpm dev        # Vite :5174，/api 代理到 :8001（后台）
+cd web-admin && pnpm build      # 构建到 src/codename_generator/static_admin/
+cd web-user  && pnpm dev        # Vite :5173，/api 代理到 :8000（前台）
+cd web-user  && pnpm build      # 构建到 src/codename_generator/static_user/
 ```
 
 ## 代码规范

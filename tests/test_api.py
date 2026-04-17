@@ -271,7 +271,7 @@ class TestStaticFiles:
             "..",
             "src",
             "codename_generator",
-            "static",
+            "static_user",
         )
         if os.path.isfile(os.path.join(static_dir, "index.html")):
             res = client.get("/")
@@ -285,7 +285,7 @@ class TestStaticFiles:
             "..",
             "src",
             "codename_generator",
-            "static",
+            "static_user",
         )
         if os.path.isfile(os.path.join(static_dir, "logo.svg")):
             res = client.get("/logo.svg")
