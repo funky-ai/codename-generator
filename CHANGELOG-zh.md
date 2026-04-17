@@ -2,6 +2,22 @@
 
 本项目的所有重要变更都会记录在此文件中。
 
+## [0.0.7] - 2026-04-17
+
+### 变更
+- **内部重构 —— 无功能或视觉变更。** 为规划中的 0.1.0 前后台客户端拆分做准备，把前端可复用代码抽成 pnpm workspace 下的独立包。
+  - `web/` 重命名为 `web-admin/`（后台 SPA）。
+  - 新增 `web-shared/` 包，承载 API client（`lib/api.ts`）、`cn` 工具、shadcn UI 基础组件、`useLang` hook 工厂、以及 i18n 的 base 翻译表。
+  - 仓库根目录新增 `pnpm-workspace.yaml`，`pnpm-lock.yaml` 移动到根目录。
+  - 后台代码通过 `@shared/*` alias 引用共享模块（配置在 `web-admin/vite.config.ts` 与 `tsconfig.json`）。
+  - 后台独有的翻译键集中在 `web-admin/src/lib/admin-i18n.ts`，运行时与 `baseTranslations` 合并。
+- `uv.lock` 与 FastAPI 应用的 `version=` 字段同步至 0.0.7。
+- `CLAUDE.md`、`README.md`、`README-zh.md`、`CONTRIBUTING.md`、`CONTRIBUTING-zh.md`：同步前端命令与架构描述。
+
+### 验证
+- `pnpm build` 产出 CSS 与 0.0.6 字节一致（hash 未变）；JS 因 i18n 工厂引入约 240 字节脚手架开销，行为完全一致。
+- `pytest tests/ -v`：77/77 通过。
+
 ## [0.0.6] - 2026-04-16
 
 ### 新增

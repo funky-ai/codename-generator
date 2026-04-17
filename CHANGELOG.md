@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.7] - 2026-04-17
+
+### Changed
+- **Internal refactor — no functional or visual changes.** Extracted reusable frontend code into a pnpm workspace in preparation for the planned 0.1.0 admin/user client split.
+  - Renamed `web/` → `web-admin/` (admin SPA).
+  - New `web-shared/` package containing the API client (`lib/api.ts`), `cn` util, shadcn UI primitives, the `useLang` hook factory, and the i18n base translations.
+  - Added `pnpm-workspace.yaml` at the repo root; `pnpm-lock.yaml` moved to the root.
+  - Admin code now imports shared modules via the `@shared/*` alias (configured in `web-admin/vite.config.ts` and `tsconfig.json`).
+  - Admin-only translation keys live in `web-admin/src/lib/admin-i18n.ts` and merge on top of `baseTranslations` at runtime.
+- `uv.lock` and the FastAPI app `version=` string synced to 0.0.7.
+- `CLAUDE.md`, `README.md`, `README-zh.md`, `CONTRIBUTING.md`, `CONTRIBUTING-zh.md`: updated the frontend commands and architecture description to reflect the workspace layout.
+
+### Verified
+- `pnpm build` produces a CSS bundle byte-identical to 0.0.6 (hash unchanged); JS bundle differs by ~240 bytes due to the added i18n factory indirection — behaviour is unchanged.
+- `pytest tests/ -v`: 77/77 pass.
+
 ## [0.0.6] - 2026-04-16
 
 ### Added

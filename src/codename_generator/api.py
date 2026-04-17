@@ -33,7 +33,7 @@ def _get_db_path() -> Path:
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Codename Generator", version="0.0.6")
+app = FastAPI(title="Codename Generator", version="0.0.7")
 
 _cors_origins = os.environ.get("CODENAME_CORS_ORIGINS", "*").split(",")
 
