@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@shared/components/ui/card";
+import { Badge } from "@shared/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@shared/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,9 +15,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { api, type LogEntry } from "@/lib/api";
-import { useLang } from "@/hooks/use-lang";
+} from "@shared/components/ui/table";
+import { api, type LogEntry } from "@shared/lib/api";
+import { useLang } from "@/lib/admin-i18n";
 
 const actionColor: Record<string, string> = {
   added: "border-green-300 text-green-700",

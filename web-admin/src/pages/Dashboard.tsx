@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/components/ui/card";
+import { Badge } from "@shared/components/ui/badge";
+import { Button } from "@shared/components/ui/button";
 import { Database, Plus, Shuffle, AlertTriangle } from "lucide-react";
-import { api, type InventoryStats } from "@/lib/api";
-import { useLang } from "@/hooks/use-lang";
+import { api, type InventoryStats } from "@shared/lib/api";
+import { useLang } from "@/lib/admin-i18n";
 
 interface Props {
   onNavigate: (page: "inventory" | "add" | "draw") => void;

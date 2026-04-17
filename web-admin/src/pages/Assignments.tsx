@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@shared/components/ui/card";
+import { Badge } from "@shared/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -8,9 +8,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { api, type Assignment } from "@/lib/api";
-import { useLang } from "@/hooks/use-lang";
+} from "@shared/components/ui/table";
+import { api, type Assignment } from "@shared/lib/api";
+import { useLang } from "@/lib/admin-i18n";
 
 export default function AssignmentsPage() {
   const { t } = useLang();

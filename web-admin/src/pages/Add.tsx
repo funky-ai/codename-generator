@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/components/ui/card";
+import { Button } from "@shared/components/ui/button";
+import { Input } from "@shared/components/ui/input";
+import { Label } from "@shared/components/ui/label";
+import { Textarea } from "@shared/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@shared/components/ui/select";
 import { Plus, Trash2, Send } from "lucide-react";
 import { toast } from "sonner";
-import { api, type CodenameInput } from "@/lib/api";
-import { useLang } from "@/hooks/use-lang";
+import { api, type CodenameInput } from "@shared/lib/api";
+import { useLang } from "@/lib/admin-i18n";
 
 const SUB_THEMES = [
   "philosophy", "art", "science", "economics", "literature",

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Toaster } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@shared/components/ui/sonner";
+import { Button } from "@shared/components/ui/button";
+import { Separator } from "@shared/components/ui/separator";
 import {
   LayoutDashboard,
   Database,
@@ -13,7 +13,7 @@ import {
   X,
   Languages,
 } from "lucide-react";
-import { useLang } from "@/hooks/use-lang";
+import { useLang } from "@/lib/admin-i18n";
 import DashboardPage from "@/pages/Dashboard";
 import InventoryPage from "@/pages/Inventory";
 import AddPage from "@/pages/Add";

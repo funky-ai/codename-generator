@@ -1,15 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@shared/components/ui/card";
+import { Badge } from "@shared/components/ui/badge";
+import { Button } from "@shared/components/ui/button";
+import { Input } from "@shared/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@shared/components/ui/select";
 import {
   Table,
   TableBody,
@@ -17,20 +17,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@shared/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@shared/components/ui/dialog";
+import { Label } from "@shared/components/ui/label";
+import { Textarea } from "@shared/components/ui/textarea";
 import { Search, Pencil, Link } from "lucide-react";
 import { toast } from "sonner";
-import { api, type Codename } from "@/lib/api";
-import { useLang } from "@/hooks/use-lang";
+import { api, type Codename } from "@shared/lib/api";
+import { useLang } from "@/lib/admin-i18n";
 
 export default function InventoryPage() {
   const { t } = useLang();

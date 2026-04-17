@@ -21,9 +21,10 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../web-shared/*"]
     },
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src"]
+  "include": ["src", "../web-shared"]
 }
