@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/components/ui/table";
-import { api, type LogEntry } from "@shared/lib/api";
+import { api, type LogAction, type LogEntry } from "@shared/lib/api";
 import { useLang } from "@/lib/admin-i18n";
 
 const actionColor: Record<string, string> = {
@@ -37,7 +37,7 @@ export default function LogsPage() {
     try {
       const data = await api.getLogs(
         Number(limit),
-        actionFilter === "all" ? undefined : actionFilter
+        actionFilter === "all" ? undefined : (actionFilter as LogAction)
       );
       setLogs(data);
     } finally {

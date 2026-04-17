@@ -4,7 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+### Added — Categories as first-class entities
+
+- **`categories` table** with adjacency-list parent pointers: `category_id` (CAT-xxxxxxxx, CSPRNG), `slug`, `name_en` / `name_zh`, `parent_id`, `sort_order`, `is_archived`, `created_at`. Partial unique index on `(slug)` where `parent_id IS NULL` (SQLite's `UNIQUE` doesn't deduplicate NULL parents).
+- **5 new MCP tools** and **5 new REST endpoints** for category CRUD:
+  - `create_category` / `list_categories` / `get_category_tree` / `update_category` / `delete_category`
+  - `GET/POST/PUT/DELETE /api/categories` + `GET /api/categories/{id}`
+- **Admin UI Categories page** (`web-admin/src/pages/Categories.tsx`): left-side tree with expand/collapse, right-side edit form (rename / re-parent / sort / archive / delete), depth-aware parent dropdown.
+- **`_migrate_v4_categories`** — idempotent migration that seeds 2 top-level + 13 leaf default categories (2 person top-level + animal top-level; philosophy / art / science / economics / literature / music / politics / medicine / mathematics / engineering; raptor / marine / mammal) and rebuilds `codename_inventory` to replace `theme` / `sub_theme` with `category_id` (INTEGER FK to `categories`). Existing `(animal, NULL)` rows migrate to the animal top-level — the only allowed non-leaf binding, documented for user migration follow-up.
+- `category_path` field on `Codename` — slug list from root to leaf, filled via a single recursive CTE (no N+1).
+- `tests/test_categories.py` (28 tests) and `tests/test_migrations.py` (12 tests) covering CRUD, depth / cycle invariants, archive semantics, and upgrade-from-v3 scenarios.
+
+### Changed — BREAKING
+
+- **`theme` / `sub_theme` fields removed** from `Codename`, `CodenameInput`, `CodenameUpdate`, MCP tools, and REST endpoints. Replace with `category_id` (public `CAT-xxxxxxxx`), which must resolve to a **non-archived leaf category**.
+- **Filter parameters changed**: `theme` / `sub_theme` → `category_id` + `include_descendants: bool = True` (defaults to subtree-inclusive) on `list_inventory`, `draw_random`, `GET /api/codenames`, `GET /api/codenames/random`.
+- **`InventoryStats` response shape**: `by_theme` / `available_by_theme` removed; replaced by `by_category: list[CategoryStat]` (direct counts per category, not rolled up).
+- **`logs.action` CHECK** extended with `category_added` / `category_updated` / `category_archived` / `category_deleted`.
+- Admin UI pages (Add / Inventory / Draw / Dashboard) and the `web-user` Browse / Draw pages refactored to the category model with cascading selectors that display `parent › child` paths.
+- MCP server instructions and the two code-generation prompts (`generate_person_codenames`, `generate_animal_codenames`) now direct the model to resolve a leaf `category_id` from `get_category_tree` before calling `add_codenames`.
+
+### Migration notes
+
+- Invariants: codenames bind to **non-archived leaf categories only**; category depth ≤ 3; re-parenting rejects cycles and subtree-height violations; delete refuses when codenames reference the category or non-archived subcategories exist.
+- **Back up `data/codenames.db` before upgrading.** Running `0.0.7` → `0.1.0-rc` automatically seeds categories and remaps existing codenames. Old `(animal, NULL)` rows land on the animal top-level (a non-leaf) — move them to a specific leaf (raptor / marine / mammal or a user-defined one) via the Categories page at your convenience.
+
+### Added — Two independent frontend clients
+
 - **Two independent frontend clients.** The admin UI and the public-facing user UI now ship as separate pnpm packages and run on independent processes/ports, sharing the same SQLite database and REST surface.
   - New `web-user/` package — read-only client with pages: Home (simplified overview with Available / Total / Assigned cards and two CTAs), Browse (read-only inventory table with search / theme / status filters), Draw (random suggestions, no Assign action), Assignments (read-only).
   - `web-user/src/lib/user-i18n.ts` — friendlier public-facing labels, layered over `@shared/lib/i18n-base`.
@@ -21,10 +47,10 @@ All notable changes to this project will be documented in this file.
 - `tests/test_api.py` static-dir references now point at `static_user/` (module-level `app` is user mode).
 
 ### Verified
-- `pytest tests/ -v`: 77/77 pass.
+- `pytest tests/ -v`: **148/148 pass** (test_core.py 56, test_api.py 52, test_categories.py 28, test_migrations.py 12).
 - `ruff check src/ tests/`: clean.
 - `cd web-admin && pnpm build` and `cd web-user && pnpm build` both succeed, emitting into `static_admin/` and `static_user/` respectively.
-- Smoke tests: both processes serve their own bundle (`http://127.0.0.1:8000` → user UI, `http://127.0.0.1:8001` → admin UI), `/openapi.json` reports version `0.1.0` on both, `/api/stats` returns identical payloads, admin Draw has Assign buttons, user Draw does not.
+- Smoke tests: admin server (`:8001`) loads Dashboard with real migrated data, Categories page renders the 15-category tree with auto-expanded top-level, Add page dropdown lists exactly 13 leaf categories as `parent › child`, `/openapi.json` reports version `0.1.0`.
 
 ## [0.0.7] - 2026-04-17
 

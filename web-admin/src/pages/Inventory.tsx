@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@shared/components/ui/card";
 import { Badge } from "@shared/components/ui/badge";
 import { Button } from "@shared/components/ui/button";
@@ -27,26 +27,77 @@ import {
 } from "@shared/components/ui/dialog";
 import { Label } from "@shared/components/ui/label";
 import { Textarea } from "@shared/components/ui/textarea";
-import { Search, Pencil, Link } from "lucide-react";
+import { Link, Pencil, Search } from "lucide-react";
 import { toast } from "sonner";
-import { api, type Codename } from "@shared/lib/api";
+import { api, type Category, type Codename } from "@shared/lib/api";
 import { useLang } from "@/lib/admin-i18n";
 
+interface CategoryOption {
+  category_id: string;
+  label: string;
+  depth: number;
+  isLeaf: boolean;
+}
+
+function collectAll(tree: Category[], lang: "zh" | "en"): CategoryOption[] {
+  const out: CategoryOption[] = [];
+  const walk = (node: Category, path: string[]) => {
+    const displayName = lang === "zh" ? node.name_zh : node.name_en;
+    const nextPath = [...path, displayName];
+    out.push({
+      category_id: node.category_id,
+      label: nextPath.join(" › "),
+      depth: node.depth,
+      isLeaf: !node.children || node.children.length === 0,
+    });
+    if (node.children) for (const child of node.children) walk(child, nextPath);
+  };
+  for (const root of tree) walk(root, []);
+  return out;
+}
+
+function collectLeaves(all: CategoryOption[]): CategoryOption[] {
+  return all.filter((c) => c.isLeaf);
+}
+
 export default function InventoryPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [codenames, setCodenames] = useState<Codename[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [themeFilter, setThemeFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tree, setTree] = useState<Category[]>([]);
 
   // Edit dialog
   const [editTarget, setEditTarget] = useState<Codename | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", name_en: "", name_zh: "", brief: "" });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    name_en: "",
+    name_zh: "",
+    category_id: "",
+    brief: "",
+  });
 
   // Assign dialog
   const [assignTarget, setAssignTarget] = useState<Codename | null>(null);
   const [assignDesc, setAssignDesc] = useState("");
+
+  const fetchTree = useCallback(async () => {
+    try {
+      const data = await api.listCategories({ tree: true });
+      setTree(data);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTree();
+  }, [fetchTree]);
+
+  const allOptions = useMemo(() => collectAll(tree, lang), [tree, lang]);
+  const leafOptions = useMemo(() => collectLeaves(allOptions), [allOptions]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -56,7 +107,7 @@ export default function InventoryPage() {
         setCodenames(results);
       } else {
         const results = await api.getCodenames({
-          theme: themeFilter === "all" ? undefined : themeFilter,
+          category_id: categoryFilter === "all" ? undefined : categoryFilter,
           status: statusFilter === "all" ? undefined : statusFilter,
         });
         setCodenames(results);
@@ -64,7 +115,7 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, themeFilter, statusFilter]);
+  }, [searchQuery, categoryFilter, statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -73,7 +124,22 @@ export default function InventoryPage() {
   const handleEdit = async () => {
     if (!editTarget) return;
     try {
-      await api.updateCodename(editTarget.codename_id, editForm);
+      const patch: {
+        name?: string;
+        name_en?: string;
+        name_zh?: string;
+        brief?: string;
+        category_id?: string;
+      } = {
+        name: editForm.name,
+        name_en: editForm.name_en,
+        name_zh: editForm.name_zh,
+        brief: editForm.brief,
+      };
+      if (editForm.category_id && editForm.category_id !== editTarget.category_id) {
+        patch.category_id = editForm.category_id;
+      }
+      await api.updateCodename(editTarget.codename_id, patch);
       toast.success(t("updateSuccess"));
       setEditTarget(null);
       fetchData();
@@ -96,7 +162,13 @@ export default function InventoryPage() {
   };
 
   const openEdit = (c: Codename) => {
-    setEditForm({ name: c.name, name_en: c.name_en, name_zh: c.name_zh, brief: c.brief });
+    setEditForm({
+      name: c.name,
+      name_en: c.name_en,
+      name_zh: c.name_zh,
+      category_id: c.category_id,
+      brief: c.brief,
+    });
     setEditTarget(c);
   };
 
@@ -113,14 +185,17 @@ export default function InventoryPage() {
             className="pl-9"
           />
         </div>
-        <Select value={themeFilter} onValueChange={setThemeFilter}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectValue placeholder={t("category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("all")} {t("theme")}</SelectItem>
-            <SelectItem value="person">{t("person")}</SelectItem>
-            <SelectItem value="animal">{t("animal")}</SelectItem>
+            <SelectItem value="all">{t("all")} {t("category")}</SelectItem>
+            {allOptions.map((opt) => (
+              <SelectItem key={opt.category_id} value={opt.category_id}>
+                {opt.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -149,7 +224,7 @@ export default function InventoryPage() {
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("nameEn")}</TableHead>
                   <TableHead>{t("nameZh")}</TableHead>
-                  <TableHead>{t("theme")}</TableHead>
+                  <TableHead>{t("category")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("brief")}</TableHead>
                   <TableHead className="w-[100px]"></TableHead>
@@ -162,16 +237,18 @@ export default function InventoryPage() {
                     <TableCell>{c.name_en}</TableCell>
                     <TableCell>{c.name_zh}</TableCell>
                     <TableCell>
-                      <Badge variant={c.theme === "person" ? "default" : "secondary"}>
-                        {c.theme === "person" ? t("person") : t("animal")}
-                      </Badge>
-                      {c.sub_theme && (
-                        <span className="ml-1 text-xs text-muted-foreground">{c.sub_theme}</span>
-                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {c.category_path.join(" › ")}
+                      </span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={c.status === "available" ? "outline" : "secondary"}
-                        className={c.status === "available" ? "border-green-300 text-green-700" : ""}
+                      <Badge
+                        variant={c.status === "available" ? "outline" : "secondary"}
+                        className={
+                          c.status === "available"
+                            ? "border-green-300 text-green-700"
+                            : ""
+                        }
                       >
                         {c.status === "available" ? t("available") : t("assigned")}
                       </Badge>
@@ -208,18 +285,20 @@ export default function InventoryPage() {
                       <div className="text-sm text-muted-foreground">
                         {c.name_en} / {c.name_zh}
                       </div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.category_path.join(" › ")}
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Badge variant={c.theme === "person" ? "default" : "secondary"}>
-                        {c.theme === "person" ? t("person") : t("animal")}
-                      </Badge>
-                      <Badge
-                        variant={c.status === "available" ? "outline" : "secondary"}
-                        className={c.status === "available" ? "border-green-300 text-green-700" : ""}
-                      >
-                        {c.status === "available" ? t("available") : t("assigned")}
-                      </Badge>
-                    </div>
+                    <Badge
+                      variant={c.status === "available" ? "outline" : "secondary"}
+                      className={
+                        c.status === "available"
+                          ? "border-green-300 text-green-700"
+                          : ""
+                      }
+                    >
+                      {c.status === "available" ? t("available") : t("assigned")}
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">{c.brief}</p>
                   <div className="flex gap-2">
@@ -245,7 +324,9 @@ export default function InventoryPage() {
       <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("edit")} — {editTarget?.name}</DialogTitle>
+            <DialogTitle>
+              {t("edit")} — {editTarget?.name}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -255,20 +336,52 @@ export default function InventoryPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("nameEn")}</Label>
-                <Input value={editForm.name_en} onChange={(e) => setEditForm({ ...editForm, name_en: e.target.value })} />
+                <Input
+                  value={editForm.name_en}
+                  onChange={(e) => setEditForm({ ...editForm, name_en: e.target.value })}
+                />
               </div>
               <div className="grid gap-2">
                 <Label>{t("nameZh")}</Label>
-                <Input value={editForm.name_zh} onChange={(e) => setEditForm({ ...editForm, name_zh: e.target.value })} />
+                <Input
+                  value={editForm.name_zh}
+                  onChange={(e) => setEditForm({ ...editForm, name_zh: e.target.value })}
+                />
               </div>
             </div>
             <div className="grid gap-2">
+              <Label>
+                {t("category")}{" "}
+                <span className="text-xs text-muted-foreground">({t("leafOnly")})</span>
+              </Label>
+              <Select
+                value={editForm.category_id}
+                onValueChange={(v) => setEditForm({ ...editForm, category_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("pickLeafCategory")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {leafOptions.map((opt) => (
+                    <SelectItem key={opt.category_id} value={opt.category_id}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
               <Label>{t("brief")}</Label>
-              <Textarea value={editForm.brief} onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })} />
+              <Textarea
+                value={editForm.brief}
+                onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTarget(null)}>{t("cancel")}</Button>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
+              {t("cancel")}
+            </Button>
             <Button onClick={handleEdit}>{t("submit")}</Button>
           </DialogFooter>
         </DialogContent>
@@ -278,7 +391,9 @@ export default function InventoryPage() {
       <Dialog open={!!assignTarget} onOpenChange={(open) => !open && setAssignTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("assign")} — {assignTarget?.name}</DialogTitle>
+            <DialogTitle>
+              {t("assign")} — {assignTarget?.name}
+            </DialogTitle>
           </DialogHeader>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             {t("assignConfirm")}
@@ -292,8 +407,12 @@ export default function InventoryPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignTarget(null)}>{t("cancel")}</Button>
-            <Button variant="destructive" onClick={handleAssign}>{t("confirm")}</Button>
+            <Button variant="outline" onClick={() => setAssignTarget(null)}>
+              {t("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleAssign}>
+              {t("confirm")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

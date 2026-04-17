@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/components/ui/card";
-import { Badge } from "@shared/components/ui/badge";
 import { Button } from "@shared/components/ui/button";
-import { Database, Plus, Shuffle, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Database, FolderTree, Plus, Shuffle } from "lucide-react";
 import { api, type InventoryStats } from "@shared/lib/api";
 import { useLang } from "@/lib/admin-i18n";
 
 interface Props {
-  onNavigate: (page: "inventory" | "add" | "draw") => void;
+  onNavigate: (page: "inventory" | "add" | "draw" | "categories") => void;
 }
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [stats, setStats] = useState<InventoryStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,9 +24,14 @@ export default function DashboardPage({ onNavigate }: Props) {
 
   if (!stats) return null;
 
+  // Top-level rows for the headline section; sub-category rows (with data)
+  // flat-listed below. The stats endpoint reports per-category direct counts
+  // only — consumers aggregate up the tree themselves, by design.
+  const tops = stats.by_category.filter((c) => c.depth === 1);
+  const leafRows = stats.by_category.filter((c) => c.depth > 1 && c.total > 0);
+
   return (
     <div className="space-y-6">
-      {/* Low stock warning */}
       {stats.low_stock_warning && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
           <AlertTriangle className="h-5 w-5 shrink-0" />
@@ -35,7 +39,6 @@ export default function DashboardPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -69,36 +72,60 @@ export default function DashboardPage({ onNavigate }: Props) {
         </Card>
       </div>
 
-      {/* Theme breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("themeBreakdown")}</CardTitle>
+          <CardTitle className="text-base">{t("categoryBreakdown")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {Object.entries(stats.by_theme).map(([theme, count]) => (
+          <div className="space-y-2">
+            {tops.length === 0 && (
+              <div className="text-muted-foreground text-sm">{t("noData")}</div>
+            )}
+            {tops.map((row) => (
               <div
-                key={theme}
+                key={row.category_id}
                 className="flex items-center justify-between rounded-lg border p-3"
               >
-                <div className="flex items-center gap-2">
-                  <Badge variant={theme === "person" ? "default" : "secondary"}>
-                    {theme === "person" ? t("person") : t("animal")}
-                  </Badge>
+                <div className="font-medium">
+                  {lang === "zh" ? row.name_zh : row.name_en}
+                  <span className="text-xs text-muted-foreground ml-2">({row.slug})</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {count} {t("total")} / {stats.available_by_theme[theme] || 0} {t("available")}
+                  {row.total} {t("total")} / {row.available} {t("available")}
                 </div>
               </div>
             ))}
-            {Object.keys(stats.by_theme).length === 0 && (
-              <div className="text-muted-foreground text-sm col-span-2">{t("noData")}</div>
-            )}
           </div>
+
+          {leafRows.length > 0 && (
+            <>
+              <h4 className="text-sm font-medium mt-6 mb-2 text-muted-foreground">
+                {t("categories")} ({t("byCategory")})
+              </h4>
+              <div className="space-y-1 text-sm">
+                {leafRows.map((row) => (
+                  <div
+                    key={row.category_id}
+                    className="flex items-center justify-between rounded border p-2"
+                  >
+                    <div>
+                      <span className="text-xs text-muted-foreground">
+                        {"—".repeat(row.depth - 1)}
+                      </span>{" "}
+                      {lang === "zh" ? row.name_zh : row.name_en}
+                      <span className="text-xs text-muted-foreground ml-2">({row.slug})</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.total} / {row.available} {t("available")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Quick actions */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("quickActions")}</CardTitle>
@@ -116,6 +143,10 @@ export default function DashboardPage({ onNavigate }: Props) {
             <Button onClick={() => onNavigate("draw")} variant="outline" className="gap-2">
               <Shuffle className="h-4 w-4" />
               {t("drawRandom")}
+            </Button>
+            <Button onClick={() => onNavigate("categories")} variant="outline" className="gap-2">
+              <FolderTree className="h-4 w-4" />
+              {t("categories")}
             </Button>
           </div>
         </CardContent>
