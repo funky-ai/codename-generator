@@ -28,7 +28,7 @@ from .models import CategoryInput, CategoryUpdate, CodenameInput, CodenameUpdate
 
 AppMode = Literal["user", "admin"]
 
-API_VERSION = "0.1.0-rc"
+API_VERSION = "0.1.0"
 
 # ---------------------------------------------------------------------------
 # Configuration

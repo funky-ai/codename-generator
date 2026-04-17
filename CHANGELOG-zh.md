@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-17
+
+本次发版合并了原本在两条独立分支上开发、同步发布的两项结构性改动：
+**类目业务模块**（移除硬编码 `theme` / `sub_theme`）与 **前后台客户端拆分**
+（两个独立进程共享同一数据库）。两项均为 **BREAKING**；升级前请先备份
+`data/codenames.db`。
+
 ### 新增 —— 类目升格为一等实体
 
 - **新增 `categories` 表**（adjacency list）：`category_id`（CAT-xxxxxxxx，CSPRNG）/ `slug` / `name_en` / `name_zh` / `parent_id` / `sort_order` / `is_archived` / `created_at`。在 `parent_id IS NULL` 条件下对 `slug` 建 partial unique index（SQLite 的 `UNIQUE` 不对 NULL 去重，必须补这层约束）。
@@ -15,6 +22,16 @@
 - `Codename` 新增 `category_path` 字段 —— 从根到叶的 slug 数组，一次递归 CTE 统一填充，不会 N+1。
 - 新增测试：`tests/test_categories.py`（28 条）覆盖 CRUD + 深度 / 环 / 归档不变式；`tests/test_migrations.py`（12 条）覆盖 fresh DB 种子、v3 升级、幂等、用户自建保留。
 
+### 新增 —— 前后台双客户端独立部署
+
+- **前后台双客户端独立部署。** 原先的单一管理界面拆成两个独立的 pnpm 包与独立进程/端口，后端 SQLite 与 REST 接口完全共享。
+  - 新增 `web-user/` 包 —— 面向终端用户的只读客户端。页面：首页（精简版概览，展示 当前可用 / 代号总数 / 已分配 三张卡 + 两个 CTA）、浏览（只读代号库，含搜索 / 类目 / 状态筛选）、随机抽取（仅建议，不含分配按钮）、分配记录（只读）。
+  - `web-user/src/lib/user-i18n.ts` —— 更友好的面向公众的中英文案，覆盖在 `@shared/lib/i18n-base` 之上。
+  - `web-user` 只从 `@shared/lib/api` 引用 GET 方法（不引用 `addCodenames` / `updateCodename` / `assignCodename`）。
+- **新增 CLI 子命令 `admin`。** `python -m codename_generator admin` 在 `8001` 端口启动后台 HTTP 服务器（挂载 `static_admin/`），与 `python -m codename_generator web` 在 `8000` 端口的前台服务器（挂载 `static_user/`）并行运行。
+- 新增环境变量 `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST`，可覆盖默认绑定地址与端口，无需改代码。
+- `api.py` 新增 `create_app(mode)` 工厂函数 —— 根据 `"user"` 或 `"admin"` 返回挂好对应静态目录的 FastAPI 实例。模块顶层 `app` 现在为 `create_app("user")`，因此 `uvicorn codename_generator.api:app` 默认启动前台 bundle。
+
 ### 变更 —— BREAKING
 
 - **从 `Codename` / `CodenameInput` / `CodenameUpdate` / MCP 工具 / REST 端点统一移除 `theme` / `sub_theme` 字段。** 改为 `category_id`（公共 `CAT-xxxxxxxx`），必须解析到一个**非归档叶子类目**。
@@ -24,33 +41,25 @@
 - Admin UI 的 Add / Inventory / Draw / Dashboard，以及 `web-user` 的 Browse / Draw 全部改造为类目模型；下拉项以 `父类 › 子类` 的路径形式展示。
 - MCP 服务端 instructions 与两个代码生成 prompt（`generate_person_codenames` / `generate_animal_codenames`）调整为先 `get_category_tree` 解析叶子 `category_id`，再 `add_codenames`。
 
-### 迁移说明
+### 变更 —— 影响部署（仅运维）
 
-- 不变式：代号只能挂**非归档叶子类目**；类目深度 ≤ 3；重挂载拒绝环与子树高度越界；删除拒绝存在代号或非归档子类目的节点。
-- **升级前请备份 `data/codenames.db`**。`0.0.7` → `0.1.0-rc` 时会自动种子类目并重建 codename_inventory。老的 `(animal, NULL)` 行会落在 animal 顶层（非叶子，迁移期唯一例外），建议通过 Categories 页面挪到具体的动物叶子（猛禽 / 海洋 / 哺乳动物 或自建子类目）。
-
-### 新增 —— 前后台双客户端独立部署
-
-- **前后台双客户端独立部署。** 原先的单一管理界面拆成两个独立的 pnpm 包与独立进程/端口，后端 SQLite 与 REST 接口完全共享。
-  - 新增 `web-user/` 包 —— 面向终端用户的只读客户端。页面：首页（精简版概览，展示 当前可用 / 代号总数 / 已分配 三张卡 + 两个 CTA）、浏览（只读代号库，含搜索 / 主题 / 状态筛选）、随机抽取（仅建议，不含分配按钮）、分配记录（只读）。
-  - `web-user/src/lib/user-i18n.ts` —— 更友好的面向公众的中英文案，覆盖在 `@shared/lib/i18n-base` 之上。
-  - `web-user` 只从 `@shared/lib/api` 引用 GET 方法（不引用 `addCodenames` / `updateCodename` / `assignCodename`）。
-- **新增 CLI 子命令 `admin`。** `python -m codename_generator admin` 在 `8001` 端口启动后台 HTTP 服务器（挂载 `static_admin/`），与 `python -m codename_generator web` 在 `8000` 端口的前台服务器（挂载 `static_user/`）并行运行。
-- 新增环境变量 `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST`，可覆盖默认绑定地址与端口，无需改代码。
-- `api.py` 新增 `create_app(mode)` 工厂函数 —— 根据 `"user"` 或 `"admin"` 返回挂好对应静态目录的 FastAPI 实例。模块顶层 `app` 现在为 `create_app("user")`，因此 `uvicorn codename_generator.api:app` 默认启动前台 bundle。
-
-### 变更
-- **破坏性变更（仅影响部署）：** `python -m codename_generator web` 现在启动的是前台客户端，而非后台。要访问后台请使用 `python -m codename_generator admin`。
+- **`python -m codename_generator web` 现在启动的是前台客户端，而非后台。** 要访问后台请使用 `python -m codename_generator admin`。
 - 静态产物路径：原 `src/codename_generator/static/` 替换为 `src/codename_generator/static_admin/`（由 `web-admin` 构建）和 `src/codename_generator/static_user/`（由 `web-user` 构建）。`.gitignore` 同步更新。
 - `web-admin/vite.config.ts` 构建输出至 `../src/codename_generator/static_admin/`，dev server 代理 `/api` 至 `http://127.0.0.1:8001`（后台进程）。
 - FastAPI 应用的 `title` 加上模式后缀（`Codename Generator (user)` / `Codename Generator (admin)`），便于通过 `/openapi.json` 识别进程来源。
 - `tests/test_api.py` 静态目录引用更新为 `static_user/`（与模块顶层 `app` 的 user 模式一致）。
 
+### 迁移说明
+
+- **不变式**：代号只能挂**非归档叶子类目**；类目深度 ≤ 3；重挂载拒绝环与子树高度越界；删除拒绝存在代号或非归档子类目的节点。
+- **升级前请备份 `data/codenames.db`**。首次启动 `0.1.0` 会自动种子类目并重建 `codename_inventory`。老的 `(animal, NULL)` 行会落在 animal 顶层（非叶子，迁移期唯一例外），建议通过 Categories 页面挪到具体的动物叶子（猛禽 / 海洋 / 哺乳动物 或自建子类目）。二次运行迁移为 no-op。
+- **使用 MCP 或 REST API 的客户端** 需切换到 `category_id`（+ 可选 `include_descendants`）作为过滤；`add_codenames` / `update_codename` 必须提供叶子 `category_id`。可用 `get_category_tree`（MCP）或 `GET /api/categories?tree=1`（REST）发现种子类目并解析叶子 id。
+
 ### 验证
 - `pytest tests/ -v`：**148/148 通过**（test_core.py 56、test_api.py 52、test_categories.py 28、test_migrations.py 12）。
 - `ruff check src/ tests/`：无错误。
 - `cd web-admin && pnpm build` 与 `cd web-user && pnpm build` 均成功，分别输出到 `static_admin/` 与 `static_user/`。
-- 冒烟测试：后台服务（`:8001`）加载 Dashboard 展示迁移后的真实数据；Categories 页面首次加载 15 个类目的树形并自动展开顶层；Add 页面下拉精确列出 13 个叶子类目（`父类 › 子类` 路径形式）；`/openapi.json` 版本为 `0.1.0`。
+- 冒烟测试：后台服务（`:8001`）加载 Dashboard 展示迁移后的真实数据；Categories 页面首次加载 15 个类目的树形并自动展开顶层；Add 页面下拉精确列出 13 个叶子类目（`父类 › 子类` 路径形式）；两个进程的 `/openapi.json` 版本均为 `0.1.0`。
 
 ## [0.0.7] - 2026-04-17
 
