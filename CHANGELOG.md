@@ -4,16 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-17
+
+This release combines two structural changes that were developed on separate
+branches and ship together: the **category business module** (replacing
+hard-coded `theme` / `sub_theme`) and the **admin/user frontend split**
+(two independent processes sharing one database). Both are **BREAKING**;
+back up `data/codenames.db` before upgrading.
+
 ### Added — Categories as first-class entities
 
 - **`categories` table** with adjacency-list parent pointers: `category_id` (CAT-xxxxxxxx, CSPRNG), `slug`, `name_en` / `name_zh`, `parent_id`, `sort_order`, `is_archived`, `created_at`. Partial unique index on `(slug)` where `parent_id IS NULL` (SQLite's `UNIQUE` doesn't deduplicate NULL parents).
 - **5 new MCP tools** and **5 new REST endpoints** for category CRUD:
   - `create_category` / `list_categories` / `get_category_tree` / `update_category` / `delete_category`
   - `GET/POST/PUT/DELETE /api/categories` + `GET /api/categories/{id}`
-- **Admin UI Categories page** (`web-admin/src/pages/Categories.tsx`): left-side tree with expand/collapse, right-side edit form (rename / re-parent / sort / archive / delete), depth-aware parent dropdown.
-- **`_migrate_v4_categories`** — idempotent migration that seeds 2 top-level + 13 leaf default categories (2 person top-level + animal top-level; philosophy / art / science / economics / literature / music / politics / medicine / mathematics / engineering; raptor / marine / mammal) and rebuilds `codename_inventory` to replace `theme` / `sub_theme` with `category_id` (INTEGER FK to `categories`). Existing `(animal, NULL)` rows migrate to the animal top-level — the only allowed non-leaf binding, documented for user migration follow-up.
+- **Admin UI Categories page** (`web-admin/src/pages/Categories.tsx`): left-side tree with expand/collapse, right-side edit form (rename / re-parent / sort / archive / delete), depth-aware parent dropdown that pre-filters invalid targets.
+- **`_migrate_v4_categories`** — idempotent migration that seeds 2 top-level + 13 leaf default categories (person + animal tops; philosophy / art / science / economics / literature / music / politics / medicine / mathematics / engineering; raptor / marine / mammal) and rebuilds `codename_inventory` to replace `theme` / `sub_theme` with `category_id` (INTEGER FK to `categories`). Existing `(animal, NULL)` rows migrate to the animal top-level — a documented migration exception; new writes still require a non-archived leaf.
 - `category_path` field on `Codename` — slug list from root to leaf, filled via a single recursive CTE (no N+1).
 - `tests/test_categories.py` (28 tests) and `tests/test_migrations.py` (12 tests) covering CRUD, depth / cycle invariants, archive semantics, and upgrade-from-v3 scenarios.
+
+### Added — Two independent frontend clients
+
+- **Two independent frontend clients.** The admin UI and the public-facing user UI now ship as separate pnpm packages and run on independent processes/ports, sharing the same SQLite database and REST surface.
+  - New `web-user/` package — read-only client with pages: Home (simplified overview with Available / Total / Assigned cards and two CTAs), Browse (read-only inventory table with search / category / status filters), Draw (random suggestions, no Assign action), Assignments (read-only).
+  - `web-user/src/lib/user-i18n.ts` — friendlier public-facing labels, layered over `@shared/lib/i18n-base`.
+  - `web-user` imports only GET methods from `@shared/lib/api` (no `addCodenames` / `updateCodename` / `assignCodename`).
+- **New `admin` CLI subcommand.** `python -m codename_generator admin` starts the admin HTTP server on port `8001` (serves `static_admin/`), in parallel with `python -m codename_generator web` on port `8000` (serves `static_user/`).
+- `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST` env vars override the default bind host + ports without code changes.
+- `create_app(mode)` factory in `api.py` — returns a FastAPI instance wired for either `"user"` or `"admin"` static mounts. Module-level `app` is now `create_app("user")`, so `uvicorn codename_generator.api:app` serves the user bundle by default.
 
 ### Changed — BREAKING
 
@@ -24,33 +42,25 @@ All notable changes to this project will be documented in this file.
 - Admin UI pages (Add / Inventory / Draw / Dashboard) and the `web-user` Browse / Draw pages refactored to the category model with cascading selectors that display `parent › child` paths.
 - MCP server instructions and the two code-generation prompts (`generate_person_codenames`, `generate_animal_codenames`) now direct the model to resolve a leaf `category_id` from `get_category_tree` before calling `add_codenames`.
 
-### Migration notes
+### Changed — Deployment-impacting (operators only)
 
-- Invariants: codenames bind to **non-archived leaf categories only**; category depth ≤ 3; re-parenting rejects cycles and subtree-height violations; delete refuses when codenames reference the category or non-archived subcategories exist.
-- **Back up `data/codenames.db` before upgrading.** Running `0.0.7` → `0.1.0-rc` automatically seeds categories and remaps existing codenames. Old `(animal, NULL)` rows land on the animal top-level (a non-leaf) — move them to a specific leaf (raptor / marine / mammal or a user-defined one) via the Categories page at your convenience.
-
-### Added — Two independent frontend clients
-
-- **Two independent frontend clients.** The admin UI and the public-facing user UI now ship as separate pnpm packages and run on independent processes/ports, sharing the same SQLite database and REST surface.
-  - New `web-user/` package — read-only client with pages: Home (simplified overview with Available / Total / Assigned cards and two CTAs), Browse (read-only inventory table with search / theme / status filters), Draw (random suggestions, no Assign action), Assignments (read-only).
-  - `web-user/src/lib/user-i18n.ts` — friendlier public-facing labels, layered over `@shared/lib/i18n-base`.
-  - `web-user` imports only GET methods from `@shared/lib/api` (no `addCodenames` / `updateCodename` / `assignCodename`).
-- **New `admin` CLI subcommand.** `python -m codename_generator admin` starts the admin HTTP server on port `8001` (serves `static_admin/`), in parallel with `python -m codename_generator web` on port `8000` (serves `static_user/`).
-- `CODENAME_WEB_PORT` / `CODENAME_ADMIN_PORT` / `CODENAME_HOST` env vars override the default bind host + ports without code changes.
-- `create_app(mode)` factory in `api.py` — returns a FastAPI instance wired for either `"user"` or `"admin"` static mounts. Module-level `app` is now `create_app("user")`, so `uvicorn codename_generator.api:app` serves the user bundle by default.
-
-### Changed
-- **Breaking (for operators only):** `python -m codename_generator web` now serves the user frontend, not the admin frontend. Run `python -m codename_generator admin` to get the admin UI.
+- **`python -m codename_generator web` now serves the user frontend, not the admin frontend.** Run `python -m codename_generator admin` to get the admin UI.
 - Static output path: the single `src/codename_generator/static/` tree is replaced by `src/codename_generator/static_admin/` (built by `web-admin`) and `src/codename_generator/static_user/` (built by `web-user`). `.gitignore` updated accordingly.
 - `web-admin/vite.config.ts` builds into `../src/codename_generator/static_admin/` and proxies `/api` to `http://127.0.0.1:8001` (admin server).
 - FastAPI app `title` includes the mode (`Codename Generator (user)` / `Codename Generator (admin)`) to make process origin obvious in `/openapi.json`.
 - `tests/test_api.py` static-dir references now point at `static_user/` (module-level `app` is user mode).
 
+### Migration notes
+
+- **Invariants**: codenames bind to **non-archived leaf categories only**; category depth ≤ 3; re-parenting rejects cycles and subtree-height violations; delete refuses when codenames reference the category or non-archived subcategories exist.
+- **Back up `data/codenames.db` before upgrading.** First launch of `0.1.0` automatically seeds categories and remaps existing codenames. Old `(animal, NULL)` rows land on the animal top-level (a non-leaf) — move them to a specific leaf (raptor / marine / mammal or a user-defined one) via the Categories page at your convenience. Re-running the migration is a no-op.
+- **Client code using the MCP or REST API** must switch to `category_id` (+ optional `include_descendants`) for filters, and provide a leaf `category_id` on `add_codenames` / `update_codename`. Use `get_category_tree` (MCP) or `GET /api/categories?tree=1` (REST) to discover the seeded default categories and resolve leaf ids.
+
 ### Verified
 - `pytest tests/ -v`: **148/148 pass** (test_core.py 56, test_api.py 52, test_categories.py 28, test_migrations.py 12).
 - `ruff check src/ tests/`: clean.
 - `cd web-admin && pnpm build` and `cd web-user && pnpm build` both succeed, emitting into `static_admin/` and `static_user/` respectively.
-- Smoke tests: admin server (`:8001`) loads Dashboard with real migrated data, Categories page renders the 15-category tree with auto-expanded top-level, Add page dropdown lists exactly 13 leaf categories as `parent › child`, `/openapi.json` reports version `0.1.0`.
+- Smoke tests: admin server (`:8001`) loads Dashboard with real migrated data, Categories page renders the 15-category tree with auto-expanded top-level, Add page dropdown lists exactly 13 leaf categories as `parent › child`. `/openapi.json` on both processes reports version `0.1.0`.
 
 ## [0.0.7] - 2026-04-17
 
