@@ -1,6 +1,6 @@
 [project]
 name = "codename-generator"
-version = "0.1.0"
+version = "0.0.7"
 description = "MCP server and web UI for managing project codenames"
 readme = "README.md"
 requires-python = ">=3.12"

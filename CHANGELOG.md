@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] - 2026-04-17
+## [Unreleased]
 
 ### Added
 - **Two independent frontend clients.** The admin UI and the public-facing user UI now ship as separate pnpm packages and run on independent processes/ports, sharing the same SQLite database and REST surface.

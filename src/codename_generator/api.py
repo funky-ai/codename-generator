@@ -28,7 +28,7 @@ from .models import CodenameInput, CodenameUpdate
 
 AppMode = Literal["user", "admin"]
 
-API_VERSION = "0.1.0"
+API_VERSION = "0.0.7"
 
 # ---------------------------------------------------------------------------
 # Configuration
