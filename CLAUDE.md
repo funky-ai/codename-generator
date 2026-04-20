@@ -76,7 +76,9 @@ cd web-user  && pnpm build                           # Build to src/codename_gen
 
 ## Mandatory Rule
 
-Every code change MUST invoke the matching workflow BEFORE writing any code:
+> **Audience:** These `/workflow-*` commands are Claude-assistant hooks from the maintainer's Claude Code setup — not part of the contributor toolchain. Human contributors can ignore this section.
+
+When Claude assists with this repo, every code change MUST invoke the matching workflow BEFORE writing any code:
 
 | Trigger | Workflow |
 |---------|----------|

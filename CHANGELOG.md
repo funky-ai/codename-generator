@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Docs
+
+- Untracked `.claude/commands/workflow-feature.md` and `.claude/commands/workflow-release.md` so the six-file `/workflow-*` set is consistently local-only (matches the `.gitignore` `.claude/` rule).
+- Annotated the Mandatory Rule table in `CLAUDE.md` to clarify these `/workflow-*` commands are Claude-assistant hooks, not part of the contributor toolchain.
+
 ## [0.1.0] - 2026-04-17
 
 This release combines two structural changes that were developed on separate

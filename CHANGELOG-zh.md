@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 文档
+
+- 取消追踪 `.claude/commands/workflow-feature.md` 与 `.claude/commands/workflow-release.md`，让六个 `/workflow-*` 文件统一保持本地（与 `.gitignore` 的 `.claude/` 规则一致）。
+- 在 `CLAUDE.md` 的 Mandatory Rule 表前加受众说明，明确这些 `/workflow-*` 是 Claude-assistant 钩子，非贡献者工具链。
+
 ## [0.1.0] - 2026-04-17
 
 本次发版合并了原本在两条独立分支上开发、同步发布的两项结构性改动：
